@@ -101,7 +101,7 @@ EPSILON_SCALE = 0.01
 # Within each window, only complete instruction sequences (multiples of 510 frames) are used.
 EPOCH_WINDOW_FRACTION = 0.10   # 10% of training pool per epoch
 EPOCH_SLIDE_FRACTION  = 0.05   # slide by 5% each epoch
-FRAMES_PER_INSTRUCTION = 510   # each complete motion = 510 steps (8 phases × ~60-90 steps)
+FRAMES_PER_INSTRUCTION = 60
 
 # Particle physics
 R_PARTICLE      = 0.03
@@ -414,7 +414,7 @@ ROLLOUT_STEPS = 5
 # Minimum consecutive frames per training sequence drawn during epoch sampling.
 # Each sequence is ROLLOUT_STEPS+1 frames long and must have at least this many
 # consecutive frames before a new sequence starts.
-SEQ_STRIDE    = 30   # sample a new start every SEQ_STRIDE frames within a run
+SEQ_STRIDE      = 5   # sample a new start every SEQ_STRIDE frames within a run
 
 
 class PHGNNDataset(Dataset):
@@ -550,6 +550,7 @@ def _radius_graph_gpu(q_dev: torch.Tensor, r_thresh: float):
     """GPU radius graph via torch_cluster — ~10-20x faster than scipy KDTree."""
     # radius_graph returns edges where dst is within r of src (directed).
     # max_num_neighbors caps memory; 64 is safe for granular packing at r=0.06m.
+    q_dev = q_dev.contiguous().float()
     edge_index = tc_radius_graph(q_dev, r=r_thresh, loop=False, max_num_neighbors=64)
     # edge_index[0]=dst, edge_index[1]=src in torch_cluster convention
     # Return bidirectional: src->dst and dst->src already included by radius_graph
