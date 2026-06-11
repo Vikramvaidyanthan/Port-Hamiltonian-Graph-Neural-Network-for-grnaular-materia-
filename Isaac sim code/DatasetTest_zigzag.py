@@ -86,13 +86,13 @@ async def shovel_sequence():
         keyframes = [
         # Phase             Steps   sh0    sh1     el0    el1     wr0     wr1
          ("flat_start",      60,  {sh0:  0.0,  sh1: -1.225, el0: 1.2, el1: 0.375, wr0: -0.192, wr1: 3.14}),
-         ("Lower_and_turn",      60,  {sh0:  0.6,  sh1: -1, el0: 2.2, el1: 0.375, wr0: -0.192, wr1: 3.14}),
-         ("Move_forward",      60,  {sh0:  0.6,  sh1: 0.05, el0: 0.9, el1: 0.375, wr0: -0.5, wr1: 3.14}),
-         ("Turn",      60,  {sh0:  0,  sh1: 0.3, el0: 0.5, el1: 0.375, wr0: -0.5, wr1: 3.14}),
-          ("Retract",      90,  {sh0:  0,  sh1: -1, el0: 2.2, el1: 0.375, wr0: -0.192, wr1: 3.14}),
-          ("Turn_2",      60,  {sh0:  -0.4,  sh1: -1, el0: 2.2, el1: 0.375, wr0: -0.192, wr1: 3.14}),
-         ("Move_forward_2",      60,  {sh0:  -0.4,  sh1: 0.05, el0: 0.9, el1: 0.375, wr0: -0.5, wr1: 3.14}),
-         ("rise_1",      120,  {sh0:  -0.4,  sh1: -1.225, el0: 1.2, el1: 0.375, wr0: 0.75, wr1: 3.14}),
+         ("Lower_and_turn",      60,  {sh0:  0.5+ x_lower_and_turn ,  sh1: -1, el0: 2.2, el1: 0.375, wr0: -0.192, wr1: 3.14}),
+         ("Move_forward",      60,  {sh0:  0.5+x_move_forward ,  sh1: 0.05, el0: 0.9, el1: 0.375, wr0: -0.5, wr1: 3.14}),
+         ("Turn",      60,  {sh0:  0,  sh1: 0.3+ x_turn, el0: 0.5, el1: 0.375, wr0: -0.5, wr1: 3.14}),
+          ("Retract",      90,  {sh0:  0+x_retract,  sh1: -1, el0: 2.2, el1: 0.375, wr0: -0.192, wr1: 3.14}),
+          ("Turn_2",      60,  {sh0:  -0.4+x_turn_2 ,  sh1: -1, el0: 2.2, el1: 0.375, wr0: -0.192, wr1: 3.14}),
+         ("Move_forward_2",      60,  {sh0:  -0.4+ x_move_forward_2 ,  sh1: 0.05, el0: 0.9, el1: 0.375, wr0: -0.5, wr1: 3.14}),
+         ("rise_1",      120,  {sh0:  -0.4+x_rise_1,  sh1: -1.225, el0: 1.2, el1: 0.375, wr0: 0.75, wr1: 3.14}),
          ("flat_start_2",      60,  {sh0:  0.0,  sh1: -1.225, el0: 1.2, el1: 0.375, wr0: -0.192, wr1: 3.14}),
         ]
 
