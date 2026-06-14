@@ -54,7 +54,7 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ─── Hyper-parameters (identical to training) ─────────────────────────────────
 ROLLOUT_STEPS = 5
-SEQ_STRIDE    = 5           # denser than training for thorough coverage
+SEQ_STRIDE    = 5
 N_STAR        = 6
 R_PARTICLE    = 0.03
 R_THRESH      = 2 * R_PARTICLE
@@ -69,17 +69,17 @@ LAMBDA4       = 1e-4
 PARTICLE_SET_OFFSET = np.array([0.4, 0.0, 0.09279], dtype=np.float64)
 
 # ─── Robot / FK constants ─────────────────────────────────────────────────────
-END_EFFECTOR    = "arm0.link_wr1"
+END_EFFECTOR     = "arm0_link_wr1"
 ROBOT_BASE_WORLD = np.array([-0.55, 1.43801, 0.50328], dtype=np.float64)
-DTYPE_FK        = torch.float64
+DTYPE_FK         = torch.float64
 DATASET_JOINT_IDX = [0, 1, 3, 4, 5, 6]
-WR1_LIMIT       = 2.88
-SCOOP_OFFSET_EE = np.array(
+WR1_LIMIT        = 2.88
+SCOOP_OFFSET_EE  = np.array(
     [0.167 + 0.09454, -0.077 - 0.06384, -0.103 + 0.07927], dtype=np.float64)
 SCOOP_HALF_EXTENTS = np.array(
     [0.08759/2 + 0.008, 0.14759/2 + 0.008, 0.23/2 + 0.008])
-SCOOP_HALF      = SCOOP_HALF_EXTENTS + 0.005
-R_scoop_local   = Rotation.from_euler(
+SCOOP_HALF       = SCOOP_HALF_EXTENTS + 0.005
+R_scoop_local    = Rotation.from_euler(
     "xyz", [-149.515, 61.231, 145.323], degrees=True).as_matrix()
 
 # ─── Wall geometry ─────────────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ print(f"Loading kinematic chain from: {args.urdf}")
 fk_chain = pk.build_serial_chain_from_urdf(
     open(args.urdf).read(), end_link_name=END_EFFECTOR, root_link_name="body")
 fk_chain = fk_chain.to(dtype=DTYPE_FK, device=DEVICE)
-N_CHAIN   = len(fk_chain.get_joint_parameter_names())
+N_CHAIN  = len(fk_chain.get_joint_parameter_names())
 
 def fk_ee(arm_pos_np: np.ndarray):
     th_full = np.zeros(N_CHAIN, dtype=np.float64)
@@ -116,7 +116,7 @@ def fk_ee(arm_pos_np: np.ndarray):
     th_full[6] = np.clip(th_full[6], -WR1_LIMIT, WR1_LIMIT)
     th = torch.tensor(th_full, dtype=DTYPE_FK, device=DEVICE).unsqueeze(0)
     T  = fk_chain.forward_kinematics(th).get_matrix().squeeze(0).cpu().numpy()
-    return ROBOT_BASE_WORLD + T[3, :3], T[:3, :3]
+    return ROBOT_BASE_WORLD + T[:3, 3], T[:3, :3]
 
 def obb_contact_np(particles_world, p_ee_world, R_ee_world):
     centre = p_ee_world + R_ee_world @ SCOOP_OFFSET_EE
@@ -188,15 +188,8 @@ def build_proximity_graph(q, arm_pos_np=None, r_thresh=R_THRESH,
         dist = np.abs((q_np - wc) @ wn)
         bw_src_list.append(torch.tensor(np.where(dist <= r_wall)[0], dtype=torch.long))
 
-    if br_src.numel() > 0:
-        bb_src_cpu = bb_src.cpu(); bb_dst_cpu = bb_dst.cpu()
-        adj = [[] for _ in range(N)]
-        for si, di in zip(bb_src_cpu.tolist(), bb_dst_cpu.tolist()):
-            adj[si].append(di)
-        hop_dist = bfs_hops(adj, br_src.cpu().tolist(), max_hops=n_star, N=N)
-        active   = hop_dist >= 0
-    else:
-        active = torch.ones(N, dtype=torch.bool)
+    # Active mask removed — evaluate all particles every step
+    active = torch.ones(N, dtype=torch.bool)
 
     return bb_src, bb_dst, br_src, bw_src_list, active
 
@@ -228,8 +221,8 @@ def subsample_to_active(x_t, x_t1, bb_src, bb_dst, br_src, bw_src_list, active_m
     new_bw_list = []
     for bws in bw_src_list:
         if bws.numel() > 0:
-            bw_cpu   = bws.cpu()
-            valid    = remap[bw_cpu]
+            bw_cpu = bws.cpu()
+            valid  = remap[bw_cpu]
             new_bw_list.append(valid[valid >= 0])
         else:
             new_bw_list.append(torch.empty(0, dtype=torch.long))
@@ -267,7 +260,8 @@ class DissipationMatrix(nn.Module):
         L[range(6), range(6)] = F.softplus(self.lower_diag) + 1e-6
         return L
     def forward(self):
-        L = self.L(); return L @ L.T
+        L = self.L()
+        return L @ L.T
 
 class BallBallMLP(nn.Module):
     def __init__(self):
@@ -301,7 +295,9 @@ class BallWallMLP(nn.Module):
         return self.net(torch.cat([xi, wall_normal], dim=1)).view(-1, 6, 3)
 
 class PHGNNPhase1(nn.Module):
-    J = torch.zeros(6, 6); J[3:, :3] = torch.eye(3); J_FIXED = J - J.T
+    _J_tmp = torch.zeros(6, 6)
+    _J_tmp[3:, :3] = torch.eye(3)
+    J_FIXED = _J_tmp - _J_tmp.T
 
     def __init__(self, n_walls=4):
         super().__init__()
@@ -313,18 +309,20 @@ class PHGNNPhase1(nn.Module):
         self.register_buffer("J", self.J_FIXED.clone())
 
     def compute_dx(self, xp, bb_src, bb_dst, br_src, arm_state, arm_u, bw_src, wall_normals):
-        grad_H        = self.Hnet.grad(xp)
+        grad_H = self.Hnet.grad(xp)
         grad_H_scaled = grad_H.clone()
         grad_H_scaled[:, 3:6] = grad_H[:, 3:6] / PARTICLE_MASS
         JmR = self.J - self.Rparam()
         dx  = grad_H_scaled @ JmR.T
 
         if bb_src.numel() > 0:
-            xi_bb = xp[bb_src]; xj_bb = xp[bb_dst]
-            grad_j        = self.Hnet.grad(xj_bb)
+            xi_bb = xp[bb_src]
+            xj_bb = xp[bb_dst]
+            grad_j = self.Hnet.grad(xj_bb)
             grad_j_scaled = grad_j.clone()
             grad_j_scaled[:, 3:6] = grad_j[:, 3:6] / PARTICLE_MASS
-            Bij = self.Bbb(xi_bb, xj_bb); Bji = self.Bbb(xj_bb, xi_bb)
+            Bij = self.Bbb(xi_bb, xj_bb)
+            Bji = self.Bbb(xj_bb, xi_bb)
             u_ij = -torch.einsum("eij,ej->ei", Bji.transpose(1, 2), grad_j_scaled)
             bbc  = torch.einsum("eij,ej->ei", Bij, u_ij)
             dx.scatter_add_(0, bb_dst.unsqueeze(1).expand_as(bbc), bbc)
@@ -352,7 +350,8 @@ class PHGNNPhase1(nn.Module):
     def forward(self, xp, bb_src, bb_dst, br_src, arm_state, arm_u, bw_src, wall_normals, dt):
         args = (bb_src, bb_dst, br_src, arm_state, arm_u, bw_src, wall_normals)
         dx_n  = self.compute_dx(xp, *args)
-        p_half = xp.clone(); p_half[:, 3:6] = xp[:, 3:6] + dt / 2.0 * dx_n[:, 3:6]
+        p_half = xp.clone()
+        p_half[:, 3:6] = xp[:, 3:6] + dt / 2.0 * dx_n[:, 3:6]
         x_half = torch.cat([xp[:, :3], p_half[:, 3:6]], dim=1)
         dx_half = self.compute_dx(x_half, *args)
         q_next  = xp[:, :3] + dt * dx_half[:, :3]
@@ -366,71 +365,73 @@ def loss_state(x_pred, x_true):
     return F.mse_loss(x_pred, x_true)
 
 def loss_R_psd(R_matrix):
-    R_f   = R_matrix.float()
-    eigv  = torch.linalg.eigvalsh(R_f)
-    neg   = F.relu(-eigv)
+    R_f  = R_matrix.float()
+    eigv = torch.linalg.eigvalsh(R_f)
+    neg  = F.relu(-eigv)
     return (neg**2).sum()
 
 def total_loss(x_pred, x_true, R_matrix):
-    Ls     = loss_state(x_pred, x_true)
-    Lr     = loss_R_psd(R_matrix)
+    Ls      = loss_state(x_pred, x_true)
+    Lr      = loss_R_psd(R_matrix)
     Lr_norm = R_matrix.float().norm()
     L = LAMBDA1 * Ls + LAMBDA2 * Lr.to(x_pred.dtype) + LAMBDA4 * Lr_norm.to(x_pred.dtype)
     return L, Ls.item(), Lr.item()
 
 def val_metrics(x_pred, x_true):
-    pos_mse = F.mse_loss(x_pred[:, :3], x_true[:, :3]).item()
-    vel_pred = x_pred[:, 3:6] / PARTICLE_MASS
-    vel_true = x_true[:, 3:6] / PARTICLE_MASS
+    x_pred_c = torch.nan_to_num(x_pred.float(), nan=0.0, posinf=1e4, neginf=-1e4)
+    x_true_c = x_true.float()
+    pos_mse  = F.mse_loss(x_pred_c[:, :3], x_true_c[:, :3]).item()
+    vel_pred = x_pred_c[:, 3:6] / PARTICLE_MASS
+    vel_true = x_true_c[:, 3:6] / PARTICLE_MASS
     vel_mse  = F.mse_loss(vel_pred, vel_true).item()
     return pos_mse, vel_mse
 
 # ─── Test Dataset ──────────────────────────────────────────────────────────────
 class TestDataset(Dataset):
-    """Identical structure to PHGNNDataset but reads from TEST_ROOT."""
     def __init__(self, phases=None):
         p_idx = pd.read_csv(TEST_ROOT / "particles_index.csv")
         s_idx = pd.read_csv(TEST_ROOT / "scooper_index.csv")
-        merged = p_idx.merge(s_idx[["frame_idx","loop","phase","step"]],
-                             on=["frame_idx","loop","phase","step"])
+        merged = p_idx.merge(s_idx[["frame_idx", "loop", "phase", "step"]],
+                             on=["frame_idx", "loop", "phase", "step"])
         if phases:
             merged = merged[merged["phase"].isin(phases)]
 
-        self.seqs   = []
+        self.seqs = []
         self.phases = []
 
         for (_, _), grp in merged.groupby(["loop", "phase"]):
-            grp  = grp.sort_values("step").reset_index(drop=True)
+            grp   = grp.sort_values("step").reset_index(drop=True)
             steps = grp["step"].tolist()
             fids  = grp["frame_idx"].tolist()
             ph    = grp["phase"].iloc[0]
             n     = len(grp)
             run_start = 0
             for k in range(1, n):
-                consecutive = (steps[k] - steps[k-1] == 1)
+                consecutive = (steps[k] - steps[k - 1] == 1)
                 run_end = k if not consecutive else None
                 if run_end is not None or k == n - 1:
                     run_end = k if run_end is None else run_end
                     for ss in range(run_start, run_end - ROLLOUT_STEPS + 1, SEQ_STRIDE):
-                        seq_fids = fids[ss: ss + ROLLOUT_STEPS + 1]
+                        seq_fids = fids[ss:ss + ROLLOUT_STEPS + 1]
                         if len(seq_fids) == ROLLOUT_STEPS + 1:
                             self.seqs.append(seq_fids)
                             self.phases.append(ph)
                     run_start = k
 
-        print(f"Pre-loading test frames into RAM...")
-        p = np.load(TEST_ROOT / "particles_full.npz",  allow_pickle=True)
-        s = np.load(TEST_ROOT / "scooper_full.npz",    allow_pickle=True)
+        print("Pre-loading test frames into RAM...")
+        p = np.load(TEST_ROOT / "particles_full.npz", allow_pickle=True)
+        s = np.load(TEST_ROOT / "scooper_full.npz", allow_pickle=True)
         needed = set(fi for seq in self.seqs for fi in seq)
         print(f"  Caching {len(needed)} unique frames...")
-        self.pcache = {i: p[f"frame{i}"]       for i in needed}
-        self.spos   = {i: s[f"frame{i}"]["pos"] for i in needed}
-        self.svel   = {i: s[f"frame{i}"]["vel"] for i in needed}
-        self.sft    = {i: s[f"frame{i}"]["ft"]  for i in needed}
+        self.pcache = {i: p[f\"frame_{i}\"] for i in needed}
+        self.spos   = {i: s[f\"frame_{i}_pos\"] for i in needed}
+        self.svel   = {i: s[f\"frame_{i}_vel\"] for i in needed}
+        self.sft    = {i: s[f\"frame_{i}_ft\"] for i in needed}
         del p, s
         print(f"  Cache ready — {len(self.seqs)} sequences of {ROLLOUT_STEPS+1} frames.")
 
-    def __len__(self): return len(self.seqs)
+    def __len__(self):
+        return len(self.seqs)
 
     def __getitem__(self, idx):
         fids  = self.seqs[idx]
@@ -445,7 +446,7 @@ class TestDataset(Dataset):
             if k < ROLLOUT_STEPS:
                 arm_pos = torch.tensor(self.spos[fi], dtype=torch.float32)
                 arm_vel = torch.tensor(self.svel[fi], dtype=torch.float32)
-                arm_ft  = torch.tensor(self.sft[fi],  dtype=torch.float32)
+                arm_ft  = torch.tensor(self.sft[fi], dtype=torch.float32)
                 arm_states.append(torch.cat([arm_pos, arm_vel, arm_ft.flatten()]))
                 arm_us.append(arm_ft[5, :3])
                 arm_pos_nps.append(self.spos[fi].astype(np.float64))
@@ -457,7 +458,6 @@ def main():
     print(f"Test dataset : {TEST_ROOT}")
     print(f"Model        : {args.model_path}")
 
-    # Validate files exist
     required = [
         TEST_ROOT / "particles_full.npz",
         TEST_ROOT / "particles_index.csv",
@@ -468,42 +468,56 @@ def main():
     if missing:
         raise FileNotFoundError("Missing test dataset files:\n" + "\n".join(missing))
 
-    # Build dataset
     test_ds = TestDataset(phases=ALL_PHASES)
-    loader  = DataLoader(test_ds, batch_size=None, shuffle=False,
-                         num_workers=0,
-                         pin_memory=(DEVICE.type == "cuda"),
-                         collate_fn=lambda x: x)
+    loader = DataLoader(
+        test_ds,
+        batch_size=None,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=(DEVICE.type == "cuda"),
+        collate_fn=lambda x: x
+    )
 
-    # Load model
     model = PHGNNPhase1().to(DEVICE)
-    ckpt  = torch.load(args.model_path, map_location=DEVICE)
-    model.load_state_dict(ckpt)
+    ckpt = torch.load(args.model_path, map_location=DEVICE)
+    key_map = {
+        "H_net.": "Hnet.", "R_param.": "Rparam.",
+        "B_bb.": "Bbb.", "B_br.": "Bbr.", "B_bw.": "Bbw.",
+    }
+    remapped = {}
+    for k, v in ckpt.items():
+        new_k = k
+        for old_k, new_name in key_map.items():
+            if new_k.startswith(old_k):
+                new_k = new_name + new_k[len(old_k):]
+                break
+        remapped[new_k] = v
+    model.load_state_dict(remapped)
     model.eval()
     print(f"Loaded model weights from {args.model_path}")
 
     wall_normals = WALL_NORMALS.to(DEVICE)
 
-    # W&B init
-    run = wandb.init(
-        project = args.wandb_project,
-        name    = args.wandb_run,
-        config  = dict(
-            test_dataset  = str(TEST_ROOT),
-            model_path    = args.model_path,
-            rollout_steps = ROLLOUT_STEPS,
-            seq_stride    = SEQ_STRIDE,
-            n_star        = N_STAR,
-            dt            = DT,
-            lambda1       = LAMBDA1,
-            lambda2       = LAMBDA2,
-            lambda4       = LAMBDA4,
-            amp           = USE_AMP,
+    wandb.init(
+        project=args.wandb_project,
+        name=args.wandb_run,
+        config=dict(
+            test_dataset=str(TEST_ROOT),
+            model_path=args.model_path,
+            rollout_steps=ROLLOUT_STEPS,
+            seq_stride=SEQ_STRIDE,
+            n_star=N_STAR,
+            dt=DT,
+            lambda1=LAMBDA1,
+            lambda2=LAMBDA2,
+            lambda4=LAMBDA4,
+            amp=USE_AMP,
+            active_mask=False,
+            scooper_state_used=True,
         ),
-        tags = ["evaluation", "zigzag"],
+        tags=["evaluation", "zigzag"],
     )
 
-    # ── Evaluation loop ──────────────────────────────────────────────────────
     tot_loss_acc = 0.0
     pos_mse_acc  = 0.0
     vel_mse_acc  = 0.0
@@ -511,7 +525,6 @@ def main():
     r_psd_acc    = 0.0
     n_samples    = 0
 
-    # Per-sequence W&B table
     tbl = wandb.Table(columns=[
         "seq_idx", "phase",
         "pos_mse", "vel_mse", "total_loss", "rollout_loss"
@@ -522,20 +535,18 @@ def main():
                                               file=sys.stderr, dynamic_ncols=True)):
             x_seq_s, arm_s_s, arm_u_s, anp_s, phase_s = sample
 
-            x_seq    = x_seq_s
+            x_seq = x_seq_s
             arm_states = arm_s_s
-            arm_us   = arm_u_s
+            arm_us = arm_u_s
             arm_pos_nps = anp_s
-            phase    = phase_s
+            phase = phase_s
 
-            # Build graph from first frame
             x_t = x_seq[0].to(DEVICE)
             q   = x_t[:, :3].detach().contiguous().float()
 
             anp = arm_pos_nps[0].astype(np.float64) if arm_pos_nps else None
             bbs, bbd, brs, bwl, act = build_proximity_graph(q, arm_pos_np=anp)
 
-            # 5-step rollout
             seq_pos_acc = 0.0
             seq_vel_acc = 0.0
             seq_tot_acc = 0.0
@@ -544,11 +555,11 @@ def main():
             for step in range(ROLLOUT_STEPS):
                 x_true = x_seq[step + 1].to(DEVICE)
 
-                # Subsample to active particles
                 x_roll_s, x_true_s, bbs_s, bbd_s, brs_s, bwl_s = \
                     subsample_to_active(x_rolling, x_true, bbs, bbd, brs, bwl, act)
 
-                bbs_d = bbs_s.to(DEVICE); bbd_d = bbd_s.to(DEVICE)
+                bbs_d = bbs_s.to(DEVICE)
+                bbd_d = bbd_s.to(DEVICE)
                 brs_d = brs_s.to(DEVICE)
                 bwl_d = [w.to(DEVICE) for w in bwl_s]
 
@@ -562,27 +573,24 @@ def main():
                     arm_ue = arm_ub.unsqueeze(0).expand(brs_d.shape[0], -1)
                 else:
                     arm_se = torch.empty(0, 48, device=DEVICE)
-                    arm_ue = torch.empty(0, 3,  device=DEVICE)
+                    arm_ue = torch.empty(0, 3, device=DEVICE)
 
                 with torch.cuda.amp.autocast(enabled=USE_AMP):
                     x_pred = model(x_roll_s, bbs_d, bbd_d, brs_d,
                                    arm_se, arm_ue, bwl_d, wall_normals, DT)
-                    R_mat  = model.Rparam()
-                    L, Ls, Lr = total_loss(x_pred, x_true_s, R_mat)
+
+                R_mat = model.Rparam()
+                L, Ls, Lr = total_loss(x_pred.float(), x_true_s.float(), R_mat.float())
 
                 pm, vm = val_metrics(x_pred, x_true_s)
-                w = 0.9 ** step   # same step weight as training
+                w = 0.9 ** step
                 seq_pos_acc += w * pm
                 seq_vel_acc += w * vm
                 seq_tot_acc += w * L.item()
 
-                # Update rolling state (full particle set, copy predicted into active)
-                x_next = x_rolling.clone()
-                idx_active = act.nonzero(as_tuple=True)[0].to(DEVICE)
-                x_next[idx_active] = x_pred
-                x_rolling = x_next
+                # No active mask — x_pred covers all particles
+                x_rolling = x_pred
 
-            # Rollout loss = average over steps
             rollout_loss = seq_tot_acc / ROLLOUT_STEPS
 
             tot_loss_acc += seq_tot_acc / ROLLOUT_STEPS
@@ -592,13 +600,14 @@ def main():
             r_psd_acc    += Lr
             n_samples    += 1
 
-            tbl.add_data(seq_idx, phase,
-                         seq_pos_acc / ROLLOUT_STEPS,
-                         seq_vel_acc / ROLLOUT_STEPS,
-                         seq_tot_acc / ROLLOUT_STEPS,
-                         rollout_loss)
+            tbl.add_data(
+                seq_idx, phase,
+                seq_pos_acc / ROLLOUT_STEPS,
+                seq_vel_acc / ROLLOUT_STEPS,
+                seq_tot_acc / ROLLOUT_STEPS,
+                rollout_loss
+            )
 
-            # Log per-sequence metrics
             wandb.log({
                 "seq/pos_mse":      seq_pos_acc / ROLLOUT_STEPS,
                 "seq/vel_mse":      seq_vel_acc / ROLLOUT_STEPS,
@@ -606,7 +615,6 @@ def main():
                 "seq/rollout_loss": rollout_loss,
             }, step=seq_idx)
 
-    # ── Aggregate metrics ─────────────────────────────────────────────────────
     R_mat = model.Rparam()
     R_norm   = R_mat.float().norm().item()
     R_eigmin = torch.linalg.eigvalsh(R_mat.float()).min().item()
@@ -624,11 +632,11 @@ def main():
     }
     wandb.log(agg)
 
-    # Update run summary
-    wandb.run.summary.update({k: v for k, v in agg.items()
-                              if not isinstance(v, wandb.Table)})
+    wandb.run.summary.update({
+        k: v for k, v in agg.items()
+        if not isinstance(v, wandb.Table)
+    })
 
-    # Save results to JSON
     results_path = OUT_DIR / "zigzag_eval_results.json"
     json.dump(
         {k: v for k, v in agg.items() if not isinstance(v, wandb.Table)},
@@ -642,7 +650,6 @@ def main():
     print(f"\nResults saved to {results_path}")
 
     wandb.finish()
-
 
 if __name__ == "__main__":
     main()
