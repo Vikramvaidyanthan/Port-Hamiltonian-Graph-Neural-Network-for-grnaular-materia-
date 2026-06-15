@@ -53,8 +53,9 @@ OUT_DIR      = Path(args.out_dir)
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ─── Hyper-parameters (identical to training) ─────────────────────────────────
-ROLLOUT_STEPS = 5
-SEQ_STRIDE    = 5
+ROLLOUT_STEPS = 5           # steps per open-loop window before GT reset
+# SEQ_STRIDE is unused in window-reset mode — full runs are loaded
+SEQ_STRIDE    = 5           # kept for compatibility
 N_STAR        = 6
 R_PARTICLE    = 0.03
 R_THRESH      = 2 * R_PARTICLE
@@ -69,17 +70,17 @@ LAMBDA4       = 1e-4
 PARTICLE_SET_OFFSET = np.array([0.4, 0.0, 0.09279], dtype=np.float64)
 
 # ─── Robot / FK constants ─────────────────────────────────────────────────────
-END_EFFECTOR     = "arm0_link_wr1"
+END_EFFECTOR    = "arm0.link_wr1"
 ROBOT_BASE_WORLD = np.array([-0.55, 1.43801, 0.50328], dtype=np.float64)
-DTYPE_FK         = torch.float64
+DTYPE_FK        = torch.float64
 DATASET_JOINT_IDX = [0, 1, 3, 4, 5, 6]
-WR1_LIMIT        = 2.88
-SCOOP_OFFSET_EE  = np.array(
+WR1_LIMIT       = 2.88
+SCOOP_OFFSET_EE = np.array(
     [0.167 + 0.09454, -0.077 - 0.06384, -0.103 + 0.07927], dtype=np.float64)
 SCOOP_HALF_EXTENTS = np.array(
     [0.08759/2 + 0.008, 0.14759/2 + 0.008, 0.23/2 + 0.008])
-SCOOP_HALF       = SCOOP_HALF_EXTENTS + 0.005
-R_scoop_local    = Rotation.from_euler(
+SCOOP_HALF      = SCOOP_HALF_EXTENTS + 0.005
+R_scoop_local   = Rotation.from_euler(
     "xyz", [-149.515, 61.231, 145.323], degrees=True).as_matrix()
 
 # ─── Wall geometry ─────────────────────────────────────────────────────────────
@@ -108,7 +109,7 @@ print(f"Loading kinematic chain from: {args.urdf}")
 fk_chain = pk.build_serial_chain_from_urdf(
     open(args.urdf).read(), end_link_name=END_EFFECTOR, root_link_name="body")
 fk_chain = fk_chain.to(dtype=DTYPE_FK, device=DEVICE)
-N_CHAIN  = len(fk_chain.get_joint_parameter_names())
+N_CHAIN   = len(fk_chain.get_joint_parameter_names())
 
 def fk_ee(arm_pos_np: np.ndarray):
     th_full = np.zeros(N_CHAIN, dtype=np.float64)
@@ -116,7 +117,7 @@ def fk_ee(arm_pos_np: np.ndarray):
     th_full[6] = np.clip(th_full[6], -WR1_LIMIT, WR1_LIMIT)
     th = torch.tensor(th_full, dtype=DTYPE_FK, device=DEVICE).unsqueeze(0)
     T  = fk_chain.forward_kinematics(th).get_matrix().squeeze(0).cpu().numpy()
-    return ROBOT_BASE_WORLD + T[:3, 3], T[:3, :3]
+    return ROBOT_BASE_WORLD + T[3, :3], T[:3, :3]
 
 def obb_contact_np(particles_world, p_ee_world, R_ee_world):
     centre = p_ee_world + R_ee_world @ SCOOP_OFFSET_EE
@@ -221,8 +222,8 @@ def subsample_to_active(x_t, x_t1, bb_src, bb_dst, br_src, bw_src_list, active_m
     new_bw_list = []
     for bws in bw_src_list:
         if bws.numel() > 0:
-            bw_cpu = bws.cpu()
-            valid  = remap[bw_cpu]
+            bw_cpu   = bws.cpu()
+            valid    = remap[bw_cpu]
             new_bw_list.append(valid[valid >= 0])
         else:
             new_bw_list.append(torch.empty(0, dtype=torch.long))
@@ -260,8 +261,7 @@ class DissipationMatrix(nn.Module):
         L[range(6), range(6)] = F.softplus(self.lower_diag) + 1e-6
         return L
     def forward(self):
-        L = self.L()
-        return L @ L.T
+        L = self.L(); return L @ L.T
 
 class BallBallMLP(nn.Module):
     def __init__(self):
@@ -295,9 +295,7 @@ class BallWallMLP(nn.Module):
         return self.net(torch.cat([xi, wall_normal], dim=1)).view(-1, 6, 3)
 
 class PHGNNPhase1(nn.Module):
-    _J_tmp = torch.zeros(6, 6)
-    _J_tmp[3:, :3] = torch.eye(3)
-    J_FIXED = _J_tmp - _J_tmp.T
+    _J_tmp = torch.zeros(6, 6); _J_tmp[3:, :3] = torch.eye(3); J_FIXED = _J_tmp - _J_tmp.T
 
     def __init__(self, n_walls=4):
         super().__init__()
@@ -309,20 +307,18 @@ class PHGNNPhase1(nn.Module):
         self.register_buffer("J", self.J_FIXED.clone())
 
     def compute_dx(self, xp, bb_src, bb_dst, br_src, arm_state, arm_u, bw_src, wall_normals):
-        grad_H = self.Hnet.grad(xp)
+        grad_H        = self.Hnet.grad(xp)
         grad_H_scaled = grad_H.clone()
         grad_H_scaled[:, 3:6] = grad_H[:, 3:6] / PARTICLE_MASS
         JmR = self.J - self.Rparam()
         dx  = grad_H_scaled @ JmR.T
 
         if bb_src.numel() > 0:
-            xi_bb = xp[bb_src]
-            xj_bb = xp[bb_dst]
-            grad_j = self.Hnet.grad(xj_bb)
+            xi_bb = xp[bb_src]; xj_bb = xp[bb_dst]
+            grad_j        = self.Hnet.grad(xj_bb)
             grad_j_scaled = grad_j.clone()
             grad_j_scaled[:, 3:6] = grad_j[:, 3:6] / PARTICLE_MASS
-            Bij = self.Bbb(xi_bb, xj_bb)
-            Bji = self.Bbb(xj_bb, xi_bb)
+            Bij = self.Bbb(xi_bb, xj_bb); Bji = self.Bbb(xj_bb, xi_bb)
             u_ij = -torch.einsum("eij,ej->ei", Bji.transpose(1, 2), grad_j_scaled)
             bbc  = torch.einsum("eij,ej->ei", Bij, u_ij)
             dx.scatter_add_(0, bb_dst.unsqueeze(1).expand_as(bbc), bbc)
@@ -350,8 +346,7 @@ class PHGNNPhase1(nn.Module):
     def forward(self, xp, bb_src, bb_dst, br_src, arm_state, arm_u, bw_src, wall_normals, dt):
         args = (bb_src, bb_dst, br_src, arm_state, arm_u, bw_src, wall_normals)
         dx_n  = self.compute_dx(xp, *args)
-        p_half = xp.clone()
-        p_half[:, 3:6] = xp[:, 3:6] + dt / 2.0 * dx_n[:, 3:6]
+        p_half = xp.clone(); p_half[:, 3:6] = xp[:, 3:6] + dt / 2.0 * dx_n[:, 3:6]
         x_half = torch.cat([xp[:, :3], p_half[:, 3:6]], dim=1)
         dx_half = self.compute_dx(x_half, *args)
         q_next  = xp[:, :3] + dt * dx_half[:, :3]
@@ -365,38 +360,45 @@ def loss_state(x_pred, x_true):
     return F.mse_loss(x_pred, x_true)
 
 def loss_R_psd(R_matrix):
-    R_f  = R_matrix.float()
-    eigv = torch.linalg.eigvalsh(R_f)
-    neg  = F.relu(-eigv)
+    R_f   = R_matrix.float()
+    eigv  = torch.linalg.eigvalsh(R_f)
+    neg   = F.relu(-eigv)
     return (neg**2).sum()
 
 def total_loss(x_pred, x_true, R_matrix):
-    Ls      = loss_state(x_pred, x_true)
-    Lr      = loss_R_psd(R_matrix)
+    Ls     = loss_state(x_pred, x_true)
+    Lr     = loss_R_psd(R_matrix)
     Lr_norm = R_matrix.float().norm()
     L = LAMBDA1 * Ls + LAMBDA2 * Lr.to(x_pred.dtype) + LAMBDA4 * Lr_norm.to(x_pred.dtype)
     return L, Ls.item(), Lr.item()
 
 def val_metrics(x_pred, x_true):
+    # Clamp before MSE so exploding rollout steps don't produce inf/NaN
     x_pred_c = torch.nan_to_num(x_pred.float(), nan=0.0, posinf=1e4, neginf=-1e4)
     x_true_c = x_true.float()
     pos_mse  = F.mse_loss(x_pred_c[:, :3], x_true_c[:, :3]).item()
-    vel_pred = x_pred_c[:, 3:6] / PARTICLE_MASS
+    vel_pred = x_pred_c[:, 3:6] / PARTICLE_MASS   # momentum → velocity
     vel_true = x_true_c[:, 3:6] / PARTICLE_MASS
     vel_mse  = F.mse_loss(vel_pred, vel_true).item()
     return pos_mse, vel_mse
 
 # ─── Test Dataset ──────────────────────────────────────────────────────────────
 class TestDataset(Dataset):
+    """
+    Loads full consecutive runs from TEST_ROOT.
+    Each item is a complete run (all frames), so the eval loop can do
+    repeated 5-step open-loop windows with GT resets between them.
+    """
     def __init__(self, phases=None):
-        p_idx = pd.read_csv(TEST_ROOT / "particles_index.csv")
-        s_idx = pd.read_csv(TEST_ROOT / "scooper_index.csv")
+        p_idx  = pd.read_csv(TEST_ROOT / "particles_index.csv")
+        s_idx  = pd.read_csv(TEST_ROOT / "scooper_index.csv")
         merged = p_idx.merge(s_idx[["frame_idx", "loop", "phase", "step"]],
                              on=["frame_idx", "loop", "phase", "step"])
         if phases:
             merged = merged[merged["phase"].isin(phases)]
 
-        self.seqs = []
+        # Each entry is a full consecutive run: list of frame_ids in order
+        self.runs   = []   # list of frame_id lists
         self.phases = []
 
         for (_, _), grp in merged.groupby(["loop", "phase"]):
@@ -411,45 +413,45 @@ class TestDataset(Dataset):
                 run_end = k if not consecutive else None
                 if run_end is not None or k == n - 1:
                     run_end = k if run_end is None else run_end
-                    for ss in range(run_start, run_end - ROLLOUT_STEPS + 1, SEQ_STRIDE):
-                        seq_fids = fids[ss:ss + ROLLOUT_STEPS + 1]
-                        if len(seq_fids) == ROLLOUT_STEPS + 1:
-                            self.seqs.append(seq_fids)
-                            self.phases.append(ph)
+                    run_fids = fids[run_start:run_end + 1]
+                    # Only keep runs long enough for at least one 5-step window
+                    if len(run_fids) > ROLLOUT_STEPS:
+                        self.runs.append(run_fids)
+                        self.phases.append(ph)
                     run_start = k
 
-        print("Pre-loading test frames into RAM...")
+        print(f"Pre-loading test frames into RAM...")
         p = np.load(TEST_ROOT / "particles_full.npz", allow_pickle=True)
-        s = np.load(TEST_ROOT / "scooper_full.npz", allow_pickle=True)
-        needed = set(fi for seq in self.seqs for fi in seq)
+        s = np.load(TEST_ROOT / "scooper_full.npz",   allow_pickle=True)
+        needed = set(fi for run in self.runs for fi in run)
         print(f"  Caching {len(needed)} unique frames...")
-        self.pcache = {i: p[f\"frame_{i}\"] for i in needed}
-        self.spos   = {i: s[f\"frame_{i}_pos\"] for i in needed}
-        self.svel   = {i: s[f\"frame_{i}_vel\"] for i in needed}
-        self.sft    = {i: s[f\"frame_{i}_ft\"] for i in needed}
+        self.pcache = {i: p[f"frame_{i}"]     for i in needed}
+        self.spos   = {i: s[f"frame_{i}_pos"] for i in needed}
+        self.svel   = {i: s[f"frame_{i}_vel"] for i in needed}
+        self.sft    = {i: s[f"frame_{i}_ft"]  for i in needed}
         del p, s
-        print(f"  Cache ready — {len(self.seqs)} sequences of {ROLLOUT_STEPS+1} frames.")
+        n_windows = sum(len(r) // ROLLOUT_STEPS for r in self.runs)
+        print(f"  Cache ready — {len(self.runs)} runs, ~{n_windows} 5-step windows.")
 
-    def __len__(self):
-        return len(self.seqs)
+    def __len__(self): return len(self.runs)
 
     def __getitem__(self, idx):
-        fids  = self.seqs[idx]
+        fids  = self.runs[idx]
         phase = self.phases[idx]
         offset = torch.tensor(PARTICLE_SET_OFFSET, dtype=torch.float32)
         x_seq, arm_states, arm_us, arm_pos_nps = [], [], [], []
-        for k, fi in enumerate(fids):
+        # Load ALL frames in the run (not just ROLLOUT_STEPS+1)
+        for fi in fids:
             p = torch.tensor(self.pcache[fi], dtype=torch.float32)
             p[:, :3] += offset
             p[:, 3:6] *= PARTICLE_MASS
             x_seq.append(p)
-            if k < ROLLOUT_STEPS:
-                arm_pos = torch.tensor(self.spos[fi], dtype=torch.float32)
-                arm_vel = torch.tensor(self.svel[fi], dtype=torch.float32)
-                arm_ft  = torch.tensor(self.sft[fi], dtype=torch.float32)
-                arm_states.append(torch.cat([arm_pos, arm_vel, arm_ft.flatten()]))
-                arm_us.append(arm_ft[5, :3])
-                arm_pos_nps.append(self.spos[fi].astype(np.float64))
+            arm_pos = torch.tensor(self.spos[fi], dtype=torch.float32)
+            arm_vel = torch.tensor(self.svel[fi], dtype=torch.float32)
+            arm_ft  = torch.tensor(self.sft[fi],  dtype=torch.float32)
+            arm_states.append(torch.cat([arm_pos, arm_vel, arm_ft.flatten()]))
+            arm_us.append(arm_ft[5, :3])
+            arm_pos_nps.append(self.spos[fi].astype(np.float64))
         return x_seq, arm_states, arm_us, arm_pos_nps, phase
 
 # ─── Main ──────────────────────────────────────────────────────────────────────
@@ -458,6 +460,7 @@ def main():
     print(f"Test dataset : {TEST_ROOT}")
     print(f"Model        : {args.model_path}")
 
+    # Validate files exist
     required = [
         TEST_ROOT / "particles_full.npz",
         TEST_ROOT / "particles_index.csv",
@@ -468,21 +471,19 @@ def main():
     if missing:
         raise FileNotFoundError("Missing test dataset files:\n" + "\n".join(missing))
 
+    # Build dataset
     test_ds = TestDataset(phases=ALL_PHASES)
-    loader = DataLoader(
-        test_ds,
-        batch_size=None,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=(DEVICE.type == "cuda"),
-        collate_fn=lambda x: x
-    )
+    loader  = DataLoader(test_ds, batch_size=None, shuffle=False,
+                         num_workers=0,
+                         pin_memory=(DEVICE.type == "cuda"),
+                         collate_fn=lambda x: x)
 
+    # Load model
     model = PHGNNPhase1().to(DEVICE)
     ckpt = torch.load(args.model_path, map_location=DEVICE)
     key_map = {
         "H_net.": "Hnet.", "R_param.": "Rparam.",
-        "B_bb.": "Bbb.", "B_br.": "Bbr.", "B_bw.": "Bbw.",
+        "B_bb.":  "Bbb.",  "B_br.":    "Bbr.",   "B_bw.": "Bbw.",
     }
     remapped = {}
     for k, v in ckpt.items():
@@ -498,145 +499,195 @@ def main():
 
     wall_normals = WALL_NORMALS.to(DEVICE)
 
-    wandb.init(
-        project=args.wandb_project,
-        name=args.wandb_run,
-        config=dict(
-            test_dataset=str(TEST_ROOT),
-            model_path=args.model_path,
-            rollout_steps=ROLLOUT_STEPS,
-            seq_stride=SEQ_STRIDE,
-            n_star=N_STAR,
-            dt=DT,
-            lambda1=LAMBDA1,
-            lambda2=LAMBDA2,
-            lambda4=LAMBDA4,
-            amp=USE_AMP,
-            active_mask=False,
-            scooper_state_used=True,
+    # W&B init
+    run = wandb.init(
+        project = args.wandb_project,
+        name    = args.wandb_run,
+        config  = dict(
+            test_dataset  = str(TEST_ROOT),
+            model_path    = args.model_path,
+            rollout_steps = ROLLOUT_STEPS,
+            eval_mode     = "open_loop_gt_reset_every_5_steps",
+            n_star        = N_STAR,
+            dt            = DT,
+            lambda1       = LAMBDA1,
+            lambda2       = LAMBDA2,
+            lambda4       = LAMBDA4,
+            amp           = USE_AMP,
+            active_mask   = False,
+            scooper_state = True,
         ),
-        tags=["evaluation", "zigzag"],
+        tags = ["evaluation", "zigzag"],
     )
 
-    tot_loss_acc = 0.0
-    pos_mse_acc  = 0.0
-    vel_mse_acc  = 0.0
-    rollout_acc  = 0.0
-    r_psd_acc    = 0.0
-    n_samples    = 0
+    # ── Evaluation loop ──────────────────────────────────────────────────────
+    # ── Global accumulators ───────────────────────────────────────────────────
+    # open-loop: per-step weighted metrics (averaged over all windows x steps)
+    tot_loss_acc  = 0.0
+    pos_mse_acc   = 0.0
+    vel_mse_acc   = 0.0
+    rollout_acc   = 0.0
+    r_psd_acc     = 0.0
+    # 5-step error: final prediction of each window vs GT at window end
+    five_pos_acc  = 0.0
+    five_vel_acc  = 0.0
+    five_loss_acc = 0.0
+    n_windows      = 0   # total 5-step windows evaluated
+    n_loss_samples = 0   # windows where loss was finite
 
+    # Per-window W&B table
     tbl = wandb.Table(columns=[
-        "seq_idx", "phase",
-        "pos_mse", "vel_mse", "total_loss", "rollout_loss"
+        "run_idx", "window_idx", "phase",
+        "start_step",
+        "pos_mse", "vel_mse", "total_loss", "rollout_loss",
+        "5step_pos_mse", "5step_vel_mse", "5step_total_loss"
     ])
 
+    global_window_idx = 0   # monotonically increasing for wandb step
+
     with torch.no_grad():
-        for seq_idx, sample in enumerate(tqdm(loader, desc="Evaluating", unit="seq",
+        for run_idx, sample in enumerate(tqdm(loader, desc="Evaluating", unit="run",
                                               file=sys.stderr, dynamic_ncols=True)):
-            x_seq_s, arm_s_s, arm_u_s, anp_s, phase_s = sample
+            x_seq, arm_states, arm_us, arm_pos_nps, phase = sample
+            T = len(x_seq)   # total frames in this run
 
-            x_seq = x_seq_s
-            arm_states = arm_s_s
-            arm_us = arm_u_s
-            arm_pos_nps = anp_s
-            phase = phase_s
+            # ── Slide 5-step windows with GT reset between each ───────────────
+            # Window i covers frames [i*5 .. i*5+5]:
+            #   seed  = GT frame at i*5
+            #   steps = model predicts frames i*5+1 .. i*5+5 (open-loop)
+            #   reset = next window seeds from GT frame (i+1)*5
 
-            x_t = x_seq[0].to(DEVICE)
-            q   = x_t[:, :3].detach().contiguous().float()
+            window_start = 0   # frame index of window seed within this run
+            while window_start + ROLLOUT_STEPS < T:
+                window_end = window_start + ROLLOUT_STEPS   # inclusive GT frame index
 
-            anp = arm_pos_nps[0].astype(np.float64) if arm_pos_nps else None
-            bbs, bbd, brs, bwl, act = build_proximity_graph(q, arm_pos_np=anp)
+                # ── Seed from ground truth ────────────────────────────────────
+                x_seed = x_seq[window_start].to(DEVICE)
+                q_seed = x_seed[:, :3].detach().contiguous().float()
+                anp    = arm_pos_nps[window_start].astype(np.float64)
+                bbs, bbd, brs, bwl, act = build_proximity_graph(q_seed, arm_pos_np=anp)
 
-            seq_pos_acc = 0.0
-            seq_vel_acc = 0.0
-            seq_tot_acc = 0.0
-            x_rolling   = x_t
+                # ── 5-step open-loop rollout ───────────────────────────────────
+                win_pos_acc = 0.0
+                win_vel_acc = 0.0
+                win_tot_acc = 0.0
+                x_rolling   = x_seed
+                x_pred_last = x_seed
 
-            for step in range(ROLLOUT_STEPS):
-                x_true = x_seq[step + 1].to(DEVICE)
+                for step in range(ROLLOUT_STEPS):
+                    frame_idx = window_start + step + 1
+                    x_true = x_seq[frame_idx].to(DEVICE)
 
-                x_roll_s, x_true_s, bbs_s, bbd_s, brs_s, bwl_s = \
-                    subsample_to_active(x_rolling, x_true, bbs, bbd, brs, bwl, act)
+                    x_roll_s, x_true_s, bbs_s, bbd_s, brs_s, bwl_s = \
+                        subsample_to_active(x_rolling, x_true, bbs, bbd, brs, bwl, act)
 
-                bbs_d = bbs_s.to(DEVICE)
-                bbd_d = bbd_s.to(DEVICE)
-                brs_d = brs_s.to(DEVICE)
-                bwl_d = [w.to(DEVICE) for w in bwl_s]
+                    bbs_d = bbs_s.to(DEVICE); bbd_d = bbd_s.to(DEVICE)
+                    brs_d = brs_s.to(DEVICE)
+                    bwl_d = [w.to(DEVICE) for w in bwl_s]
 
-                arm_sb = arm_states[step].to(DEVICE) if step < len(arm_states) else \
-                         torch.zeros(48, device=DEVICE)
-                arm_ub = arm_us[step].to(DEVICE) if step < len(arm_us) else \
-                         torch.zeros(3, device=DEVICE)
+                    arm_sb = arm_states[window_start + step].to(DEVICE)
+                    arm_ub = arm_us[window_start + step].to(DEVICE)
 
-                if brs_d.numel() > 0:
-                    arm_se = arm_sb.unsqueeze(0).expand(brs_d.shape[0], -1)
-                    arm_ue = arm_ub.unsqueeze(0).expand(brs_d.shape[0], -1)
-                else:
-                    arm_se = torch.empty(0, 48, device=DEVICE)
-                    arm_ue = torch.empty(0, 3, device=DEVICE)
+                    if brs_d.numel() > 0:
+                        arm_se = arm_sb.unsqueeze(0).expand(brs_d.shape[0], -1)
+                        arm_ue = arm_ub.unsqueeze(0).expand(brs_d.shape[0], -1)
+                    else:
+                        arm_se = torch.empty(0, 48, device=DEVICE)
+                        arm_ue = torch.empty(0, 3,  device=DEVICE)
 
-                with torch.cuda.amp.autocast(enabled=USE_AMP):
-                    x_pred = model(x_roll_s, bbs_d, bbd_d, brs_d,
-                                   arm_se, arm_ue, bwl_d, wall_normals, DT)
+                    with torch.cuda.amp.autocast(enabled=USE_AMP):
+                        x_pred = model(x_roll_s, bbs_d, bbd_d, brs_d,
+                                       arm_se, arm_ue, bwl_d, wall_normals, DT)
 
-                R_mat = model.Rparam()
-                L, Ls, Lr = total_loss(x_pred.float(), x_true_s.float(), R_mat.float())
+                    R_mat = model.Rparam()
+                    L, Ls, Lr = total_loss(x_pred.float(), x_true_s.float(), R_mat.float())
 
-                pm, vm = val_metrics(x_pred, x_true_s)
-                w = 0.9 ** step
-                seq_pos_acc += w * pm
-                seq_vel_acc += w * vm
-                seq_tot_acc += w * L.item()
+                    pm, vm = val_metrics(x_pred, x_true_s)
+                    w = 0.9 ** step   # same weighting as training
+                    win_pos_acc += w * pm
+                    win_vel_acc += w * vm
+                    win_tot_acc += w * L.item()
 
-                # No active mask — x_pred covers all particles
-                x_rolling = x_pred
+                    # Open-loop: carry prediction forward
+                    x_rolling   = x_pred
+                    x_pred_last = x_pred.detach()
 
-            rollout_loss = seq_tot_acc / ROLLOUT_STEPS
+                # ── 5-step error: final prediction vs GT at window_end ────────
+                x_true_last = x_seq[window_end].to(DEVICE)
+                _, x_true_last_s, _, _, _, _ = subsample_to_active(
+                    x_pred_last, x_true_last, bbs, bbd, brs, bwl, act)
+                five_pm, five_vm = val_metrics(x_pred_last, x_true_last_s)
+                _, _, five_Lr = total_loss(
+                    x_pred_last.float(), x_true_last_s.float(), R_mat.float())
 
-            tot_loss_acc += seq_tot_acc / ROLLOUT_STEPS
-            pos_mse_acc  += seq_pos_acc / ROLLOUT_STEPS
-            vel_mse_acc  += seq_vel_acc / ROLLOUT_STEPS
-            rollout_acc  += rollout_loss
-            r_psd_acc    += Lr
-            n_samples    += 1
+                rollout_loss = win_tot_acc / ROLLOUT_STEPS
 
-            tbl.add_data(
-                seq_idx, phase,
-                seq_pos_acc / ROLLOUT_STEPS,
-                seq_vel_acc / ROLLOUT_STEPS,
-                seq_tot_acc / ROLLOUT_STEPS,
-                rollout_loss
-            )
+                # ── Accumulate globals ────────────────────────────────────────
+                pos_mse_acc  += win_pos_acc / ROLLOUT_STEPS
+                vel_mse_acc  += win_vel_acc / ROLLOUT_STEPS
+                five_pos_acc += five_pm
+                five_vel_acc += five_vm
+                n_windows    += 1
+                if math.isfinite(rollout_loss):
+                    tot_loss_acc  += rollout_loss
+                    rollout_acc   += rollout_loss
+                    r_psd_acc     += Lr
+                    five_loss_acc += five_Lr
+                    n_loss_samples += 1
 
-            wandb.log({
-                "seq/pos_mse":      seq_pos_acc / ROLLOUT_STEPS,
-                "seq/vel_mse":      seq_vel_acc / ROLLOUT_STEPS,
-                "seq/total_loss":   seq_tot_acc / ROLLOUT_STEPS,
-                "seq/rollout_loss": rollout_loss,
-            }, step=seq_idx)
+                tbl.add_data(
+                    run_idx, global_window_idx, phase,
+                    window_start,
+                    win_pos_acc / ROLLOUT_STEPS,
+                    win_vel_acc / ROLLOUT_STEPS,
+                    win_tot_acc / ROLLOUT_STEPS,
+                    rollout_loss,
+                    five_pm, five_vm, five_Lr
+                )
 
+                wandb.log({
+                    "window/pos_mse":          win_pos_acc / ROLLOUT_STEPS,
+                    "window/vel_mse":          win_vel_acc / ROLLOUT_STEPS,
+                    "window/total_loss":       win_tot_acc / ROLLOUT_STEPS,
+                    "window/rollout_loss":     rollout_loss,
+                    "window/5step_pos_mse":    five_pm,
+                    "window/5step_vel_mse":    five_vm,
+                    "window/5step_total_loss": five_Lr,
+                }, step=global_window_idx)
+
+                global_window_idx += 1
+                # ── GT reset: advance seed by ROLLOUT_STEPS ───────────────────
+                window_start += ROLLOUT_STEPS
+
+    # ── Aggregate metrics ─────────────────────────────────────────────────────
     R_mat = model.Rparam()
     R_norm   = R_mat.float().norm().item()
     R_eigmin = torch.linalg.eigvalsh(R_mat.float()).min().item()
 
     agg = {
-        "test/pos_mse":      pos_mse_acc  / max(n_samples, 1),
-        "test/vel_mse":      vel_mse_acc  / max(n_samples, 1),
-        "test/total_loss":   tot_loss_acc / max(n_samples, 1),
-        "test/rollout_loss": rollout_acc  / max(n_samples, 1),
-        "test/R_psd_loss":   r_psd_acc    / max(n_samples, 1),
-        "test/R_norm":       R_norm,
-        "test/R_eigmin":     R_eigmin,
-        "test/n_sequences":  n_samples,
+        # Open-loop weighted metrics (averaged over all windows x steps)
+        "test/pos_mse":          pos_mse_acc   / max(n_windows,      1),
+        "test/vel_mse":          vel_mse_acc   / max(n_windows,      1),
+        "test/total_loss":       tot_loss_acc  / max(n_loss_samples, 1),
+        "test/rollout_loss":     rollout_acc   / max(n_loss_samples, 1),
+        # 5-step error: open-loop prediction at end of each window vs GT
+        "test/5step_pos_mse":    five_pos_acc  / max(n_windows,      1),
+        "test/5step_vel_mse":    five_vel_acc  / max(n_windows,      1),
+        "test/5step_total_loss": five_loss_acc / max(n_loss_samples, 1),
+        "test/R_psd_loss":       r_psd_acc     / max(n_loss_samples, 1),
+        "test/n_windows":        n_windows,
+        "test/n_loss_valid":     n_loss_samples,
+        "test/R_norm":           R_norm,
+        "test/R_eigmin":         R_eigmin,
         "test/predictions_table": tbl,
     }
     wandb.log(agg)
 
-    wandb.run.summary.update({
-        k: v for k, v in agg.items()
-        if not isinstance(v, wandb.Table)
-    })
+    # Update run summary
+    wandb.run.summary.update({k: v for k, v in agg.items()
+                              if not isinstance(v, wandb.Table)})
 
+    # Save results to JSON
     results_path = OUT_DIR / "zigzag_eval_results.json"
     json.dump(
         {k: v for k, v in agg.items() if not isinstance(v, wandb.Table)},
@@ -650,6 +701,7 @@ def main():
     print(f"\nResults saved to {results_path}")
 
     wandb.finish()
+
 
 if __name__ == "__main__":
     main()
