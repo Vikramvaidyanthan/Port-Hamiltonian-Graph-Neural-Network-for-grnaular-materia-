@@ -1121,10 +1121,14 @@ def main():
         tqdm.write(_epoch_msg, file=sys.stderr)
         sys.stderr.flush()
 
-        # Save best model checkpoint
+        # Save checkpoint at every epoch as model_best_{epoch}.pt
+        # (no model_best.pt or any other name — one file per epoch, up to epoch 20)
+        ckpt_path = OUT_DIR / f"model_best_{epoch:02d}.pt"
+        torch.save(model.state_dict(), ckpt_path)
+
+        # Track the epoch with the lowest val pos MSE in W&B summary
         if val_pos_mse < best_val_pos:
             best_val_pos = val_pos_mse
-            torch.save(model.state_dict(), OUT_DIR / "model_best.pt")
             wandb.run.summary["best_val_pos_mse"] = best_val_pos
             wandb.run.summary["best_epoch"]        = epoch
 
