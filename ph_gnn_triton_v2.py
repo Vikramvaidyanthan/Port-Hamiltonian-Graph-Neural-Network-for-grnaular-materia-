@@ -85,7 +85,7 @@ DT             = 1.0 / 60.0
 # torch.backends.cudnn.benchmark intentionally disabled — no convolutions in this model
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 USE_AMP = DEVICE.type == "cuda"                # automatic mixed precision
-scaler  = torch.amp.GradScaler('cuda', enabled=USE_AMP)
+scaler  = torch.cuda.amp.GradScaler(enabled=USE_AMP)
 
 # Loss weights
 LAMBDA1 = 1000.0   # state (position + velocity) MSE
@@ -221,7 +221,7 @@ class HamiltonianNet(nn.Module):
           differentiate the returned gradient w.r.t. θ during the backward pass,
           causing "does not require grad" errors.
         """
-        with torch.amp.autocast("cuda", enabled=False):
+        with torch.cuda.amp.autocast(enabled=False):
             with torch.enable_grad():
                 x_in = x.float().clone().requires_grad_(True)
                 H    = self.net(x_in)
@@ -745,7 +745,7 @@ def main():
         _H     = torch.nn.Linear(6, 1).to(DEVICE)(_dummy).sum()
         torch.autograd.grad(_H, _dummy, create_graph=False)
         # Warm up AMP scaler path
-        with torch.amp.autocast("cuda"):
+        with torch.cuda.amp.autocast():
             _ = torch.mm(torch.randn(128, 128, device=DEVICE),
                          torch.randn(128, 128, device=DEVICE))
         # Warm up torch_cluster radius_graph if available (first call triggers PTX JIT)
@@ -916,7 +916,7 @@ def main():
                         arm_state_e = torch.empty(0, 48, device=DEVICE)
                         arm_u_e     = torch.empty(0, 3,  device=DEVICE)
 
-                    with torch.amp.autocast('cuda', enabled=USE_AMP):
+                    with torch.cuda.amp.autocast(enabled=USE_AMP):
                         x_pred     = model(x_rolling_sub, bb_src, bb_dst, br_src,
                                            arm_state_e, arm_u_e, bw_src_list, wall_normals, DT)
                         R_mat      = model.R_param()
@@ -961,7 +961,7 @@ def main():
         val_loss_sum = 0.0
         val_n        = 0
 
-        with torch.no_grad(), torch.amp.autocast('cuda', enabled=USE_AMP):
+        with torch.no_grad(), torch.cuda.amp.autocast(enabled=USE_AMP):
             for sample in val_loader:
                 x_seq_batch, arm_states_batch, arm_us_batch, arm_pos_nps_batch, _ = sample
 
@@ -1065,7 +1065,7 @@ def main():
             # Re-run one val sample for the table (lightweight)
             sample_iter = iter(val_loader)
             sv          = next(sample_iter)
-            with torch.no_grad(), torch.amp.autocast('cuda', enabled=USE_AMP):
+            with torch.no_grad(), torch.cuda.amp.autocast(enabled=USE_AMP):
                 x_t_s, x_t1_s, arm_s_s, arm_u_s, phase_s, anp_s = sv
                 anp      = anp_s[0].numpy().astype(np.float64)
                 xt_dev   = x_t_s[0].to(DEVICE)
@@ -1121,12 +1121,12 @@ def main():
         tqdm.write(_epoch_msg, file=sys.stderr)
         sys.stderr.flush()
 
-        # Save checkpoint at every epoch as model_best_{epoch}.pt
-        # (no model_best.pt or any other name — one file per epoch, up to epoch 20)
-        ckpt_path = OUT_DIR / f"model_best_{epoch:02d}.pt"
+        # Save checkpoint after every epoch — always use the latest model state
+        # (training continues from current model regardless of val MSE)
+        ckpt_path = OUT_DIR / f"model_epoch_{epoch:02d}.pt"
         torch.save(model.state_dict(), ckpt_path)
 
-        # Track the epoch with the lowest val pos MSE in W&B summary
+        # Track the epoch with the lowest val pos MSE in W&B summary (for reference only)
         if val_pos_mse < best_val_pos:
             best_val_pos = val_pos_mse
             wandb.run.summary["best_val_pos_mse"] = best_val_pos
