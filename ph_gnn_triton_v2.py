@@ -56,7 +56,7 @@ from tqdm import tqdm
 # ── CLI ───────────────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser()
 parser.add_argument("--urdf", type=str,
-                    default="/scratch/work/venkatv1/dataset/spot.urdf")
+                    default="/scratch/work/venkatv1/Dataset/spot.urdf")
 parser.add_argument("--wandb_project", type=str, default="ph-gnn-phase1",
                     help="W&B project name")
 parser.add_argument("--wandb_run", type=str, default=None,
@@ -66,7 +66,7 @@ args, _ = parser.parse_known_args()
 # ============================================================
 # Config
 # ============================================================
-DATASET_ROOT = Path("/scratch/work/venkatv1/dataset")
+DATASET_ROOT = Path("/scratch/work/venkatv1/Dataset")
 OUT_DIR      = Path("/scratch/work/venkatv1/ph_gnn_outputs")
 OUT_DIR.mkdir(exist_ok=True)
 
@@ -101,7 +101,7 @@ EPSILON_SCALE = 0.01
 # Within each window, only complete instruction sequences (multiples of 510 frames) are used.
 EPOCH_WINDOW_FRACTION = 0.10   # 10% of training pool per epoch
 EPOCH_SLIDE_FRACTION  = 0.05   # slide by 5% each epoch
-FRAMES_PER_INSTRUCTION = 60
+FRAMES_PER_INSTRUCTION = 60    # one phase = 60 steps
 
 # Particle physics
 R_PARTICLE      = 0.03
@@ -221,7 +221,7 @@ class HamiltonianNet(nn.Module):
           differentiate the returned gradient w.r.t. θ during the backward pass,
           causing "does not require grad" errors.
         """
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.cuda.amp.autocast( enabled=False):
             with torch.enable_grad():
                 x_in = x.float().clone().requires_grad_(True)
                 H    = self.net(x_in)
@@ -551,6 +551,8 @@ def _radius_graph_gpu(q_dev: torch.Tensor, r_thresh: float):
     # radius_graph returns edges where dst is within r of src (directed).
     # max_num_neighbors caps memory; 64 is safe for granular packing at r=0.06m.
     q_dev = q_dev.contiguous().float()
+    q_dev = q_dev.detach().contiguous().float()
+    if q_dev.dim() != 2: q_dev = q_dev.view(-1, q_dev.shape[-1])
     edge_index = tc_radius_graph(q_dev, r=r_thresh, loop=False, max_num_neighbors=64)
     # edge_index[0]=dst, edge_index[1]=src in torch_cluster convention
     # Return bidirectional: src->dst and dst->src already included by radius_graph
@@ -745,7 +747,7 @@ def main():
         _H     = torch.nn.Linear(6, 1).to(DEVICE)(_dummy).sum()
         torch.autograd.grad(_H, _dummy, create_graph=False)
         # Warm up AMP scaler path
-        with torch.cuda.amp.autocast():
+        with torch.amp.autocast("cuda"):
             _ = torch.mm(torch.randn(128, 128, device=DEVICE),
                          torch.randn(128, 128, device=DEVICE))
         # Warm up torch_cluster radius_graph if available (first call triggers PTX JIT)
@@ -916,7 +918,7 @@ def main():
                         arm_state_e = torch.empty(0, 48, device=DEVICE)
                         arm_u_e     = torch.empty(0, 3,  device=DEVICE)
 
-                    with torch.cuda.amp.autocast(enabled=USE_AMP):
+                    with torch.cuda.amp.autocast( enabled=USE_AMP):
                         x_pred     = model(x_rolling_sub, bb_src, bb_dst, br_src,
                                            arm_state_e, arm_u_e, bw_src_list, wall_normals, DT)
                         R_mat      = model.R_param()
@@ -961,7 +963,7 @@ def main():
         val_loss_sum = 0.0
         val_n        = 0
 
-        with torch.no_grad(), torch.cuda.amp.autocast(enabled=USE_AMP):
+        with torch.no_grad(), torch.cuda.amp.autocast( enabled=USE_AMP):
             for sample in val_loader:
                 x_seq_batch, arm_states_batch, arm_us_batch, arm_pos_nps_batch, _ = sample
 
@@ -1065,8 +1067,10 @@ def main():
             # Re-run one val sample for the table (lightweight)
             sample_iter = iter(val_loader)
             sv          = next(sample_iter)
-            with torch.no_grad(), torch.cuda.amp.autocast(enabled=USE_AMP):
-                x_t_s, x_t1_s, arm_s_s, arm_u_s, phase_s, anp_s = sv
+            with torch.no_grad(), torch.cuda.amp.autocast( enabled=USE_AMP):
+                x_seq_s, arm_s_s, arm_u_s, anp_s, phase_s = sv
+                x_t_s  = x_seq_s[0]   # first frame (batch-wrapped list)
+                x_t1_s = x_seq_s[1]   # second frame
                 anp      = anp_s[0].numpy().astype(np.float64)
                 xt_dev   = x_t_s[0].to(DEVICE)
                 xt1_dev  = x_t1_s[0].to(DEVICE)
@@ -1121,12 +1125,11 @@ def main():
         tqdm.write(_epoch_msg, file=sys.stderr)
         sys.stderr.flush()
 
-        # Save checkpoint after every epoch — always use the latest model state
-        # (training continues from current model regardless of val MSE)
-        ckpt_path = OUT_DIR / f"model_epoch_{epoch:02d}.pt"
+        # Save checkpoint for every epoch
+        ckpt_path = OUT_DIR / f"model_best_{epoch}.pt"
         torch.save(model.state_dict(), ckpt_path)
 
-        # Track the epoch with the lowest val pos MSE in W&B summary (for reference only)
+        # Track best epoch in W&B summary (no separate best model save needed)
         if val_pos_mse < best_val_pos:
             best_val_pos = val_pos_mse
             wandb.run.summary["best_val_pos_mse"] = best_val_pos
@@ -1164,10 +1167,7 @@ def main():
     plt.close()
     wandb.log({"charts/loss_curve": wandb.Image(str(OUT_DIR / "loss_curve.png"))})
 
-    # Upload final R matrix as W&B artifact
-    artifact = wandb.Artifact("R_phase1", type="model")
-    artifact.add_file(str(OUT_DIR / "R_phase1.pt"))
-    run.log_artifact(artifact)
+
     run.finish()
 
     print(f"\nDone. Best val pos_MSE={best_val_pos:.6f}")
