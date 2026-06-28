@@ -1,0 +1,28 @@
+Warming up CUDA (JIT compilation — may take 1-3 min on first run)...
+CUDA warm-up done.
+
+Pre-loading frames into RAM (one-time)...
+  Caching 112000 unique frames...
+  Cache ready — 20,000 sequences of 11 frames.
+
+
+============================================================
+  DATASET SPLIT  (90% train / 10% val, sliding-window epochs)
+  Total sequences  : 20,000
+  Training pool    : 18,000  (indices 0 .. 17999)
+  Validation set   : 2,000   (indices 18000 .. 19999)
+  Window per epoch : 1,800 seqs (floored to x60)
+  Slide per epoch  : 900 seqs (~5%)
+  Epochs           : 20
+============================================================
+Training:   0%|          | 0/20 [28:58<?, ?epoch/s]
+Traceback (most recent call last):
+  File "/scratch/work/venkatv1/ph_gnn/ph_gnn_triton_v2.py", line 1173, in <module>
+    main()
+  File "/scratch/work/venkatv1/ph_gnn/ph_gnn_triton_v2.py", line 1071, in main
+    bbs, bbd, brs, bwl, act = build_proximity_graph(q, arm_pos_np=anp)
+  File "/scratch/work/venkatv1/ph_gnn/ph_gnn_triton_v2.py", line 585, in build_proximity_graph
+    mask_contact = obb_contact_np(q_np, p_ee, R_ee)
+  File "/scratch/work/venkatv1/ph_gnn/ph_gnn_triton_v2.py", line 164, in obb_contact_np
+    local  = (particles_world - centre[np.newaxis, :]) @ R_obb
+ValueError: operands could not be broadcast together with shapes (1,3,6) (1,3)

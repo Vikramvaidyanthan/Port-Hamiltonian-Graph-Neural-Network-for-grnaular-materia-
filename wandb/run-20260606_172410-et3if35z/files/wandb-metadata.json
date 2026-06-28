@@ -1,0 +1,85 @@
+{
+  "os": "Linux-5.14.0-570.108.1.el9_6.x86_64-x86_64-with-glibc2.34",
+  "python": "CPython 3.10.20",
+  "startedAt": "2026-06-06T14:24:10.885400Z",
+  "args": [
+    "--urdf",
+    "/scratch/work/venkatv1/Dataset/spot.urdf",
+    "--wandb_project",
+    "ph-gnn-phase1",
+    "--wandb_run",
+    "triton_a100_run1"
+  ],
+  "program": "/scratch/work/venkatv1/ph_gnn_triton_v2.py",
+  "git": {
+    "remote": "https://github.com/Vikramvaidyanthan/Port-Hamiltonian-Graph-Neural-Network-for-grnaular-materia-.git",
+    "commit": "f5303754d44c23187df4ef73f06a0f4447b1ca6b"
+  },
+  "email": "vikramvaidyanathan.venkatraman@aalto.fi",
+  "root": "/scratch/work/venkatv1/ph_gnn",
+  "host": "dgx6.int.triton.aalto.fi",
+  "executable": "/scratch/work/venkatv1/envs/ph_gnn_env/bin/python",
+  "cpu_count": 40,
+  "cpu_count_logical": 80,
+  "gpu": "Tesla V100-SXM2-32GB",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "270453772288",
+      "used": "4288647168"
+    }
+  },
+  "memory": {
+    "total": "540907548672"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "Tesla V100-SXM2-32GB",
+      "memoryTotal": "34359738368",
+      "cudaCores": 5120,
+      "architecture": "Volta",
+      "uuid": "GPU-6015ed9c-8b56-dbb3-0444-c08b09806f81"
+    }
+  ],
+  "cudaVersion": "13.0",
+  "slurm": {
+    "cluster_name": "triton",
+    "conf": "/var/spool/slurmd/conf-cache/slurm.conf",
+    "conf_server": "slurmctl,slurmctl2",
+    "cpus_on_node": "8",
+    "cpus_per_task": "8",
+    "gpus_on_node": "1",
+    "gtids": "0",
+    "job_account": "aalto_users",
+    "job_cpus_per_node": "8",
+    "job_end_time": "1780885434",
+    "job_gid": "3117418",
+    "job_gpus": "2",
+    "job_id": "18339220",
+    "job_name": "ph_gnn_train",
+    "job_nodelist": "dgx6",
+    "job_num_nodes": "1",
+    "job_partition": "gpu-v100-32g",
+    "job_qos": "normal",
+    "job_start_time": "1780755834",
+    "job_uid": "3117418",
+    "job_user": "venkatv1",
+    "jobid": "18339220",
+    "localid": "0",
+    "mem_per_node": "65536",
+    "nnodes": "1",
+    "nodeid": "0",
+    "nodelist": "dgx6",
+    "oom_kill_step": "0",
+    "prio_process": "0",
+    "procid": "0",
+    "submit_dir": "/scratch/work/venkatv1/ph_gnn",
+    "submit_host": "login4.triton.aalto.fi",
+    "task_pid": "4020749",
+    "tasks_per_node": "1",
+    "topology_addr": "s0-0.s1-8.dgx6",
+    "topology_addr_pattern": "switch.switch.node",
+    "tres_per_task": "cpu=8"
+  },
+  "writerId": "i3gehi9ldsyq6e542stkwhc03yq5qgzx"
+}

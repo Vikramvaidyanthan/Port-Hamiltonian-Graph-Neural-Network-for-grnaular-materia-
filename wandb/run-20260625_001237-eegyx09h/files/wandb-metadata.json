@@ -1,0 +1,92 @@
+{
+  "os": "Linux-5.14.0-570.108.1.el9_6.x86_64-x86_64-with-glibc2.34",
+  "python": "CPython 3.10.20",
+  "startedAt": "2026-06-24T21:12:37.507410Z",
+  "args": [
+    "--urdf",
+    "/scratch/work/venkatv1/Dataset/spot.urdf",
+    "--dataset_root",
+    "/scratch/work/venkatv1/Dataset",
+    "--test_subdir",
+    "DatasetTest_zigzag",
+    "--model_path",
+    "/scratch/work/venkatv1/ph_gnn_outputs/model_best_1.pt",
+    "--out_dir",
+    "/scratch/work/venkatv1/ph_gnn_outputs",
+    "--wandb_project",
+    "ph-gnn-phase1",
+    "--wandb_run",
+    "zigzag_eval_Epoch1_18845369"
+  ],
+  "program": "/scratch/work/venkatv1/ph_gnn_eval_zigzag.py",
+  "git": {
+    "remote": "https://github.com/Vikramvaidyanthan/Port-Hamiltonian-Graph-Neural-Network-for-grnaular-materia-.git",
+    "commit": "bb1c0d548405c37cc83231e5ef541b224b6eec96"
+  },
+  "email": "vikramvaidyanathan.venkatraman@aalto.fi",
+  "root": "/scratch/work/venkatv1/ph_gnn",
+  "host": "gpu13.int.triton.aalto.fi",
+  "executable": "/scratch/work/venkatv1/envs/ph_gnn_env/bin/python",
+  "cpu_count": 48,
+  "cpu_count_logical": 96,
+  "gpu": "NVIDIA A100-SXM4-80GB",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "268517019648",
+      "used": "4697006080"
+    }
+  },
+  "memory": {
+    "total": "540611678208"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA A100-SXM4-80GB",
+      "memoryTotal": "85899345920",
+      "cudaCores": 6912,
+      "architecture": "Ampere",
+      "uuid": "GPU-fe4b02c9-bda2-57d0-3fa5-a875d1743154"
+    }
+  ],
+  "cudaVersion": "13.0",
+  "slurm": {
+    "cluster_name": "triton",
+    "conf": "/var/spool/slurmd/conf-cache/slurm.conf",
+    "cpus_on_node": "4",
+    "cpus_per_task": "4",
+    "gpus_on_node": "1",
+    "gtids": "0",
+    "job_account": "aalto_users",
+    "job_cpus_per_node": "4",
+    "job_end_time": "1782342678",
+    "job_gid": "3117418",
+    "job_gpus": "3",
+    "job_id": "18845369",
+    "job_name": "ph_gnn_eval",
+    "job_nodelist": "gpu13",
+    "job_num_nodes": "1",
+    "job_partition": "gpu-a100-80g",
+    "job_qos": "normal",
+    "job_start_time": "1782335478",
+    "job_uid": "3117418",
+    "job_user": "venkatv1",
+    "jobid": "18845369",
+    "localid": "0",
+    "mem_per_node": "32768",
+    "nnodes": "1",
+    "nodeid": "0",
+    "nodelist": "gpu13",
+    "oom_kill_step": "0",
+    "prio_process": "0",
+    "procid": "0",
+    "submit_dir": "/scratch/work/venkatv1/ph_gnn",
+    "submit_host": "login4.triton.aalto.fi",
+    "task_pid": "1891825",
+    "tasks_per_node": "1",
+    "topology_addr": "s0-0.s1-10.gpu13",
+    "topology_addr_pattern": "switch.switch.node",
+    "tres_per_task": "cpu=4"
+  },
+  "writerId": "vpwkcruvb62ppigdcdoxe7co506wfhp4"
+}

@@ -1,0 +1,26 @@
+Warming up CUDA (JIT compilation — may take 1-3 min on first run)...
+  Warming up torch_cluster radius_graph...
+  torch_cluster warm-up done.
+CUDA warm-up done.
+
+Pre-loading frames into RAM (one-time)...
+  Caching 112000 unique frames...
+  Cache ready — 22,000 sequences of 6 frames.
+
+
+============================================================
+  DATASET SPLIT  (90% train / 10% val, sliding-window epochs)
+  Total sequences  : 22,000
+  Training pool    : 19,800  (indices 0 .. 19799)
+  Validation set   : 2,200   (indices 19800 .. 21999)
+  Window per epoch : 1,980 seqs (floored to x60)
+  Slide per epoch  : 990 seqs (~5%)
+  Epochs           : 20
+============================================================
+Training:   0%|          | 0/20 [36:44<?, ?epoch/s]
+Traceback (most recent call last):
+  File "/scratch/work/venkatv1/ph_gnn/ph_gnn_triton_v2.py", line 1178, in <module>
+    main()
+  File "/scratch/work/venkatv1/ph_gnn/ph_gnn_triton_v2.py", line 1069, in main
+    x_t_s, x_t1_s, arm_s_s, arm_u_s, phase_s, anp_s = sv
+ValueError: not enough values to unpack (expected 6, got 5)

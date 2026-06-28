@@ -1,0 +1,40 @@
+Warming up CUDA (JIT compilation — may take 1-3 min on first run)...
+  Warming up torch_cluster radius_graph...
+  torch_cluster warm-up done.
+CUDA warm-up done.
+
+Pre-loading frames into RAM (one-time)...
+  Caching 112000 unique frames...
+  Cache ready — 22,000 sequences of 6 frames.
+
+
+============================================================
+  DATASET SPLIT  (90% train / 10% val, sliding-window epochs)
+  Total sequences  : 22,000
+  Training pool    : 19,800  (indices 0 .. 19799)
+  Validation set   : 2,200   (indices 19800 .. 21999)
+  Window per epoch : 1,980 seqs (floored to x60)
+  Slide per epoch  : 990 seqs (~5%)
+  Epochs           : 20
+============================================================
+Epoch 001/20 | Total=0.655111 State=0.000753 R=0.000000 | Val pos_MSE=0.000214 vel_MSE=0.003119 rollout_loss=0.187015 | R_norm=0.5573 R_eigmin=1.34e-01 | lr=0.00100 | time=2237.4s
+Epoch 002/20 | Total=0.295261 State=0.000352 R=0.000000 | Val pos_MSE=0.000103 vel_MSE=0.002920 rollout_loss=0.126010 | R_norm=0.3684 R_eigmin=6.29e-02 | lr=0.00100 | time=2334.8s
+Epoch 003/20 | Total=0.325642 State=0.000385 R=0.000000 | Val pos_MSE=0.000180 vel_MSE=0.009832 rollout_loss=0.341305 | R_norm=0.2394 R_eigmin=4.34e-02 | lr=0.00100 | time=2231.4s
+Epoch 004/20 | Total=0.259024 State=0.000313 R=0.000000 | Val pos_MSE=0.000164 vel_MSE=0.004887 rollout_loss=0.206848 | R_norm=0.1583 R_eigmin=2.51e-02 | lr=0.00100 | time=2299.9s
+Epoch 005/20 | Total=0.336733 State=0.000398 R=0.000000 | Val pos_MSE=0.000126 vel_MSE=0.005358 rollout_loss=0.200142 | R_norm=0.1045 R_eigmin=1.45e-02 | lr=0.00100 | time=2323.9s
+Epoch 006/20 | Total=0.211865 State=0.000245 R=0.000000 | Val pos_MSE=0.000053 vel_MSE=0.002655 rollout_loss=0.094431 | R_norm=0.0694 R_eigmin=7.65e-03 | lr=0.00100 | time=2317.1s
+Epoch 007/20 | Total=0.341398 State=0.000407 R=0.000000 | Val pos_MSE=0.000164 vel_MSE=0.015425 rollout_loss=0.476402 | R_norm=0.0448 R_eigmin=4.17e-03 | lr=0.00100 | time=2337.5s
+Epoch 008/20 | Total=1.020531 State=0.001281 R=0.000000 | Val pos_MSE=0.000075 vel_MSE=0.001118 rollout_loss=0.066208 | R_norm=0.0281 R_eigmin=3.31e-03 | lr=0.00100 | time=2322.9s
+Epoch 009/20 | Total=0.249373 State=0.000289 R=0.000000 | Val pos_MSE=0.000039 vel_MSE=0.000534 rollout_loss=0.033223 | R_norm=0.0176 R_eigmin=1.94e-03 | lr=0.00100 | time=2301.1s
+Epoch 010/20 | Total=3.987214 State=0.004462 R=0.000000 | Val pos_MSE=0.000126 vel_MSE=0.000946 rollout_loss=0.087285 | R_norm=0.0111 R_eigmin=1.67e-03 | lr=0.00100 | time=2289.0s
+Epoch 011/20 | Total=0.304388 State=0.000353 R=0.000000 | Val pos_MSE=0.000303 vel_MSE=0.002341 rollout_loss=0.211460 | R_norm=0.0075 R_eigmin=1.45e-03 | lr=0.00100 | time=2258.0s
+Epoch 012/20 | Total=0.226803 State=0.000274 R=0.000000 | Val pos_MSE=0.000157 vel_MSE=0.008440 rollout_loss=0.294159 | R_norm=0.0054 R_eigmin=1.26e-03 | lr=0.00100 | time=2267.3s
+Epoch 013/20 | Total=0.270734 State=0.000329 R=0.000000 | Val pos_MSE=0.000108 vel_MSE=0.002215 rollout_loss=0.110616 | R_norm=0.0042 R_eigmin=1.11e-03 | lr=0.00100 | time=2262.0s
+Epoch 014/20 | Total=0.233987 State=0.000285 R=0.000000 | Val pos_MSE=0.000105 vel_MSE=0.001464 rollout_loss=0.089881 | R_norm=0.0034 R_eigmin=9.98e-04 | lr=0.00100 | time=2260.4s
+Epoch 015/20 | Total=0.251416 State=0.000299 R=0.000000 | Val pos_MSE=0.000044 vel_MSE=0.002769 rollout_loss=0.092936 | R_norm=0.0030 R_eigmin=9.15e-04 | lr=0.00100 | time=2256.4s
+Epoch 016/20 | Total=0.315468 State=0.000382 R=0.000000 | Val pos_MSE=0.000205 vel_MSE=0.005361 rollout_loss=0.239752 | R_norm=0.0026 R_eigmin=8.41e-04 | lr=0.00100 | time=2309.4s
+Epoch 017/20 | Total=0.298304 State=0.000359 R=0.000000 | Val pos_MSE=0.000202 vel_MSE=0.007121 rollout_loss=0.283342 | R_norm=0.0026 R_eigmin=8.36e-04 | lr=0.00100 | time=2287.3s
+Epoch 018/20 | Total=inf State=inf R=0.000000 | Val pos_MSE=0.000112 vel_MSE=0.012117 rollout_loss=0.366018 | R_norm=0.0026 R_eigmin=8.36e-04 | lr=0.00100 | time=2391.0s
+Epoch 019/20 | Total=0.334780 State=0.000405 R=0.000000 | Val pos_MSE=0.000101 vel_MSE=0.020266 rollout_loss=0.569079 | R_norm=0.0026 R_eigmin=8.36e-04 | lr=0.00100 | time=2342.8s
+Epoch 020/20 | Total=0.234059 State=0.000274 R=0.000000 | Val pos_MSE=0.000219 vel_MSE=0.005271 rollout_loss=0.244484 | R_norm=0.0026 R_eigmin=8.36e-04 | lr=0.00050 | time=2224.5s
+Training: 100%|██████████| 20/20 [12:44:23<00:00, 2293.17s/epoch]

@@ -8,11 +8,11 @@
 
 # GPU
 #SBATCH --gres=gpu:1
-#SBATCH --partition=gpu-a100-80g,gpu-v100-32g
+#SBATCH --partition=gpu-a100-80g
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 ROOT_DIR="/scratch/work/venkatv1"
-SCRIPT="${ROOT_DIR}/ph_gnn_triton_subsample.py
+SCRIPT="${ROOT_DIR}/ph_gnn/ph_gnn_triton_subsample.py"
 OUT_DIR="${ROOT_DIR}/ph_gnn_outputs"
 
 mkdir -p "${OUT_DIR}/logs"
@@ -36,7 +36,7 @@ echo "========================================"
 module load triton/2025.1-gcc
 module load mamba
 
-source ~/.bashrc
+source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate /scratch/work/venkatv1/envs/ph_gnn_env
 
 # ── Threading — prevent CPU over-subscription alongside GPU work ─────────────
@@ -56,8 +56,7 @@ export MPLCONFIGDIR="${MPLCONFIGDIR:-/tmp/matplotlib_${SLURM_JOB_ID}}"
 # ── GPU info ─────────────────────────────────────────────────────────────────
 nvidia-smi --query-gpu=name,memory.total,driver_version \
            --format=csv,noheader 2>/dev/null || echo "nvidia-smi not available"
-python -c "import torch; print(f'PyTorch {torch.__version__} | CUDA {torch.version.cuda} | device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"CPU\"}')"
-
+python -c "import torch; avail=torch.cuda.is_available(); print('PyTorch', torch.__version__, '| CUDA', torch.version.cuda, '| device:', torch.cuda.get_device_name(0) if avail else 'CPU')"
 echo "========================================"
 echo "Launching training..."
 echo "========================================"

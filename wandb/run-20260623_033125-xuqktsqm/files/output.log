@@ -1,0 +1,31 @@
+Warming up CUDA (JIT compilation — may take 1-3 min on first run)...
+CUDA warm-up done.
+
+Pre-loading frames into RAM (one-time)...
+  Caching 112000 unique frames...
+  Cache ready — 20,000 sequences of 11 frames.
+
+
+============================================================
+  DATASET SPLIT  (90% train / 10% val, sliding-window epochs)
+  Total sequences  : 20,000
+  Training pool    : 18,000  (indices 0 .. 17999)
+  Validation set   : 2,000   (indices 18000 .. 19999)
+  Window per epoch : 1,800 seqs (floored to x60)
+  Slide per epoch  : 900 seqs (~5%)
+  Epochs           : 20
+============================================================
+Training:   0%|          | 0/20 [31:40<?, ?epoch/s]
+Traceback (most recent call last):
+  File "/scratch/work/venkatv1/ph_gnn/ph_gnn_triton_v2.py", line 1171, in <module>
+    main()
+  File "/scratch/work/venkatv1/ph_gnn/ph_gnn_triton_v2.py", line 1069, in main
+    bbs, bbd, brs, bwl, act = build_proximity_graph(q, arm_pos_np=anp)
+  File "/scratch/work/venkatv1/ph_gnn/ph_gnn_triton_v2.py", line 577, in build_proximity_graph
+    bb_src, bb_dst = _radius_graph_cpu(q_np, r_thresh)
+  File "/scratch/work/venkatv1/ph_gnn/ph_gnn_triton_v2.py", line 540, in _radius_graph_cpu
+    tree  = KDTree(q_np)
+  File "/scratch/work/venkatv1/envs/ph_gnn_env/lib/python3.10/site-packages/scipy/spatial/_kdtree.py", line 360, in __init__
+    super().__init__(data, leafsize, compact_nodes, copy_data,
+  File "_ckdtree.pyx", line 560, in scipy.spatial._ckdtree.cKDTree.__init__
+ValueError: data must be of shape (n, m), where there are n points of dimension m

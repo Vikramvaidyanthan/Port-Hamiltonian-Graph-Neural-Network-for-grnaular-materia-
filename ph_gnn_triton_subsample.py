@@ -1079,8 +1079,9 @@ def main():
                     g2l          = {g: l for l, g in enumerate(active_global_sorted)}
                     chosen_local = np.array([g2l[g] for g in chosen_global if g in g2l],
                                             dtype=np.int64)
-                    if chosen_local.size == 0:
-                        x_rolling = x_rolling.clone()
+                    if chosen_global.size == 0 or chosen_local.size == 0:
+                        with torch.no_grad():
+                            x_rolling = x_rolling.clone()
                         continue
 
                     x_rolling_sub, x_true_sub, bb_src, bb_dst, br_src, bw_src_list = \
@@ -1125,12 +1126,13 @@ def main():
                     x_rolling[chosen_global_t] = x_pred.detach()
 
             # Single optimizer step — gradients accumulated across all steps
-            scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            scaler.step(optimizer)
-            scaler.update()
+            # Single optimizer step — only if at least one backward was recorded
+            if seq_ep_loss > 0.0:
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                scaler.step(optimizer)
+                scaler.update()
             optimizer.zero_grad(set_to_none=True)
-
             ep_tot   += seq_ep_loss
             n_batches += 1
             batch_buf.clear()

@@ -1,0 +1,128 @@
+_wandb:
+    value:
+        cli_version: 0.27.1
+        e:
+            0g4vsw8rhihjz065vtvz9eybhbkpazfs:
+                args:
+                    - --urdf
+                    - /scratch/work/venkatv1/Dataset/spot.urdf
+                    - --wandb_project
+                    - ph-gnn-phase1
+                    - --wandb_run
+                    - triton_a100_run1
+                cpu_count: 48
+                cpu_count_logical: 96
+                cudaVersion: "13.0"
+                disk:
+                    /:
+                        total: "268511895552"
+                        used: "3855503360"
+                email: vikramvaidyanathan.venkatraman@aalto.fi
+                executable: /scratch/work/venkatv1/envs/ph_gnn_env/bin/python
+                git:
+                    commit: 815898787366cf892cd5b707202f78770eb6f9bc
+                    remote: https://github.com/Vikramvaidyanthan/Port-Hamiltonian-Graph-Neural-Network-for-grnaular-materia-.git
+                gpu: NVIDIA A100-SXM4-80GB
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 6912
+                      memoryTotal: "85899345920"
+                      name: NVIDIA A100-SXM4-80GB
+                      uuid: GPU-1a2a8f97-2524-63b6-8f4a-66f0721adca9
+                host: gpu14.int.triton.aalto.fi
+                memory:
+                    total: "540611629056"
+                os: Linux-5.14.0-570.116.1.el9_6.x86_64-x86_64-with-glibc2.34
+                program: /scratch/work/venkatv1/ph_gnn_triton_v2.py
+                python: CPython 3.10.20
+                root: /scratch/work/venkatv1/ph_gnn
+                slurm:
+                    cluster_name: triton
+                    conf: /var/spool/slurmd/conf-cache/slurm.conf
+                    conf_server: slurmctl,slurmctl2
+                    cpus_on_node: "8"
+                    cpus_per_task: "8"
+                    gpus_on_node: "1"
+                    gtids: "0"
+                    job_account: aalto_users
+                    job_cpus_per_node: "8"
+                    job_end_time: "1781985298"
+                    job_gid: "3117418"
+                    job_gpus: "0"
+                    job_id: "18785658"
+                    job_name: ph_gnn_train
+                    job_nodelist: gpu14
+                    job_num_nodes: "1"
+                    job_partition: gpu-a100-80g
+                    job_qos: normal
+                    job_start_time: "1781855698"
+                    job_uid: "3117418"
+                    job_user: venkatv1
+                    jobid: "18785658"
+                    localid: "0"
+                    mem_per_node: "65536"
+                    nnodes: "1"
+                    nodeid: "0"
+                    nodelist: gpu14
+                    oom_kill_step: "0"
+                    prio_process: "0"
+                    procid: "0"
+                    submit_dir: /scratch/work/venkatv1/ph_gnn
+                    submit_host: login4.triton.aalto.fi
+                    task_pid: "2571617"
+                    tasks_per_node: "1"
+                    topology_addr: s0-0.s1-10.gpu14
+                    topology_addr_pattern: switch.switch.node
+                    tres_per_task: cpu=8
+                startedAt: "2026-06-19T07:55:35.101745Z"
+                writerId: 0g4vsw8rhihjz065vtvz9eybhbkpazfs
+        m: []
+        python_version: 3.10.20
+        t:
+            "1":
+                - 1
+            "2":
+                - 1
+            "3":
+                - 2
+                - 13
+                - 16
+                - 61
+                - 62
+            "4": 3.10.20
+            "5": 0.27.1
+            "12": 0.27.1
+            "13": linux-x86_64
+amp:
+    value: true
+batch_size:
+    value: 1
+dt:
+    value: 0.016666666666666666
+epoch_slide_step:
+    value: 990
+epoch_window_size:
+    value: 1980
+epochs:
+    value: 20
+lambda1:
+    value: 1000
+lambda2:
+    value: 0.5
+lambda4:
+    value: 0.0001
+lr:
+    value: 0.001
+n_star:
+    value: 6
+n_total:
+    value: 22000
+n_train:
+    value: 19800
+n_val:
+    value: 2200
+step_lr_gamma:
+    value: 0.5
+step_lr_step:
+    value: 20

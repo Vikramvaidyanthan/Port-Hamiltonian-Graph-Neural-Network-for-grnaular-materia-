@@ -1,0 +1,60 @@
+Warming up CUDA (JIT compilation — may take 1-3 min on first run)...
+  Warming up torch_cluster radius_graph...
+  torch_cluster warm-up done.
+CUDA warm-up done.
+
+Pre-loading frames into RAM (one-time)...
+  Caching 112000 unique frames...
+  Cache ready — 22,000 sequences of 6 frames.
+
+
+============================================================
+  DATASET SPLIT  (90% train / 10% val, sliding-window epochs)
+  Total sequences  : 22,000
+  Training pool    : 19,800  (indices 0 .. 19799)
+  Validation set   : 2,200   (indices 19800 .. 21999)
+  Window per epoch : 1,980 seqs (floored to x60)
+  Slide per epoch  : 990 seqs (~5%)
+  Epochs           : 20
+============================================================
+[Sampler] Epoch 1: anchor=662, selected 300 particles (cooldown until epoch 5).
+Epoch 001/20 | Total=0.226295 State=0.000261 R=0.000000 | Val pos_MSE=0.000694 vel_MSE=0.004670 rollout_loss=0.466649 | R_norm=0.7029 R_eigmin=1.83e-01 | lr=0.00100 | time=1989.5s
+[Sampler] Epoch 2: anchor=995, selected 300 particles (cooldown until epoch 6).
+Epoch 002/20 | Total=0.046322 State=0.000057 R=0.000000 | Val pos_MSE=0.000390 vel_MSE=0.003192 rollout_loss=0.276557 | R_norm=0.4367 R_eigmin=1.11e-01 | lr=0.00100 | time=2052.1s
+[Sampler] Epoch 3: anchor=879, selected 300 particles (cooldown until epoch 7).
+Epoch 003/20 | Total=0.016844 State=0.000021 R=0.000000 | Val pos_MSE=0.000126 vel_MSE=0.002665 rollout_loss=0.131201 | R_norm=0.2789 R_eigmin=6.60e-02 | lr=0.00100 | time=2020.2s
+[Sampler] Epoch 4: anchor=1029, selected 300 particles (cooldown until epoch 8).
+Epoch 004/20 | Total=0.094409 State=0.000122 R=0.000000 | Val pos_MSE=0.000053 vel_MSE=0.003117 rollout_loss=0.106109 | R_norm=0.2002 R_eigmin=4.03e-02 | lr=0.00100 | time=2123.2s
+[Sampler] Epoch 5: anchor=1906, selected 300 particles (cooldown until epoch 9).
+Epoch 005/20 | Total=0.023501 State=0.000029 R=0.000000 | Val pos_MSE=0.000067 vel_MSE=0.004320 rollout_loss=0.143912 | R_norm=0.1339 R_eigmin=2.45e-02 | lr=0.00100 | time=2093.5s
+[Sampler] Epoch 6: anchor=2581, selected 300 particles (cooldown until epoch 10).
+Epoch 006/20 | Total=0.043072 State=0.000054 R=0.000000 | Val pos_MSE=0.000191 vel_MSE=0.003899 rollout_loss=0.195247 | R_norm=0.0900 R_eigmin=1.28e-02 | lr=0.00100 | time=2093.7s
+[Sampler] Epoch 7: anchor=741, selected 300 particles (cooldown until epoch 11).
+Epoch 007/20 | Total=0.264558 State=0.000356 R=0.000000 | Val pos_MSE=0.000133 vel_MSE=0.005686 rollout_loss=0.211876 | R_norm=0.0585 R_eigmin=9.07e-03 | lr=0.00100 | time=2064.4s
+[Sampler] Epoch 8: anchor=1967, selected 300 particles (cooldown until epoch 12).
+Epoch 008/20 | Total=0.056173 State=0.000071 R=0.000000 | Val pos_MSE=0.000123 vel_MSE=0.002221 rollout_loss=0.118097 | R_norm=0.0370 R_eigmin=5.66e-03 | lr=0.00100 | time=2074.6s
+[Sampler] Epoch 9: anchor=910, selected 300 particles (cooldown until epoch 13).
+Epoch 009/20 | Total=0.063513 State=0.000080 R=0.000000 | Val pos_MSE=0.000353 vel_MSE=0.008675 rollout_loss=0.398571 | R_norm=0.0236 R_eigmin=3.49e-03 | lr=0.00100 | time=2089.4s
+[Sampler] Epoch 10: anchor=1436, selected 300 particles (cooldown until epoch 14).
+Epoch 010/20 | Total=0.100470 State=0.000131 R=0.000000 | Val pos_MSE=0.000132 vel_MSE=0.003041 rollout_loss=0.143992 | R_norm=0.0155 R_eigmin=2.64e-03 | lr=0.00100 | time=2132.0s
+[Sampler] Epoch 11: anchor=1466, selected 300 particles (cooldown until epoch 15).
+Epoch 011/20 | Total=0.031826 State=0.000040 R=0.000000 | Val pos_MSE=0.000316 vel_MSE=0.013121 rollout_loss=0.493525 | R_norm=0.0099 R_eigmin=1.91e-03 | lr=0.00100 | time=2045.9s
+[Sampler] Epoch 12: anchor=1848, selected 300 particles (cooldown until epoch 16).
+Epoch 012/20 | Total=0.005980 State=0.000008 R=0.000000 | Val pos_MSE=0.000270 vel_MSE=0.006134 rollout_loss=0.292062 | R_norm=0.0064 R_eigmin=1.47e-03 | lr=0.00100 | time=2023.4s
+[Sampler] Epoch 13: anchor=478, selected 300 particles (cooldown until epoch 17).
+Epoch 013/20 | Total=0.058000 State=0.000073 R=0.000000 | Val pos_MSE=0.000491 vel_MSE=0.007496 rollout_loss=0.437172 | R_norm=0.0048 R_eigmin=1.23e-03 | lr=0.00100 | time=2020.3s
+[Sampler] Epoch 14: anchor=537, selected 300 particles (cooldown until epoch 18).
+Epoch 014/20 | Total=0.069399 State=0.000087 R=0.000000 | Val pos_MSE=0.000289 vel_MSE=0.011502 rollout_loss=0.438665 | R_norm=0.0041 R_eigmin=7.92e-04 | lr=0.00100 | time=2075.8s
+[Sampler] Epoch 15: anchor=1741, selected 300 particles (cooldown until epoch 19).
+Epoch 015/20 | Total=0.076842 State=0.000097 R=0.000000 | Val pos_MSE=0.000067 vel_MSE=0.011171 rollout_loss=0.319296 | R_norm=0.0031 R_eigmin=8.05e-04 | lr=0.00100 | time=2151.0s
+[Sampler] Epoch 16: anchor=2215, selected 300 particles (cooldown until epoch 20).
+Epoch 016/20 | Total=0.088147 State=0.000114 R=0.000000 | Val pos_MSE=0.000021 vel_MSE=0.003408 rollout_loss=0.097848 | R_norm=0.0029 R_eigmin=6.02e-04 | lr=0.00100 | time=2134.2s
+[Sampler] Epoch 17: anchor=67, selected 300 particles (cooldown until epoch 21).
+Epoch 017/20 | Total=0.071704 State=0.000092 R=0.000000 | Val pos_MSE=0.000089 vel_MSE=0.003026 rollout_loss=0.121867 | R_norm=0.0025 R_eigmin=5.25e-04 | lr=0.00100 | time=1989.0s
+[Sampler] Epoch 18: anchor=790, selected 300 particles (cooldown until epoch 22).
+Epoch 018/20 | Total=0.044267 State=0.000056 R=0.000000 | Val pos_MSE=0.000234 vel_MSE=0.009612 rollout_loss=0.362943 | R_norm=0.0022 R_eigmin=4.51e-04 | lr=0.00100 | time=2087.3s
+[Sampler] Epoch 19: anchor=690, selected 300 particles (cooldown until epoch 23).
+Epoch 019/20 | Total=0.089445 State=0.000113 R=0.000000 | Val pos_MSE=0.000087 vel_MSE=0.001447 rollout_loss=0.080594 | R_norm=0.0020 R_eigmin=4.14e-04 | lr=0.00100 | time=2058.8s
+[Sampler] Epoch 20: anchor=1414, selected 300 particles (cooldown until epoch 24).
+Epoch 020/20 | Total=0.083637 State=0.000109 R=0.000000 | Val pos_MSE=0.000058 vel_MSE=0.001136 rollout_loss=0.058049 | R_norm=0.0019 R_eigmin=3.98e-04 | lr=0.00050 | time=2104.5s
+Training: 100%|██████████| 20/20 [11:30:35<00:00, 2071.77s/epoch]

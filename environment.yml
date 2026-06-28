@@ -1,0 +1,19 @@
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pytorch>=2.2,<2.3
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - tqdm
+  - pip
+  - pip:
+    - pytorch-kinematics
+    - wandb

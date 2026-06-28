@@ -1,0 +1,86 @@
+{
+  "os": "Linux-5.14.0-570.108.1.el9_6.x86_64-x86_64-with-glibc2.34",
+  "python": "CPython 3.10.20",
+  "startedAt": "2026-06-27T06:12:55.463105Z",
+  "args": [
+    "--urdf",
+    "/scratch/work/venkatv1/Dataset/spot.urdf",
+    "--wandb_project",
+    "ph-gnn-phase1",
+    "--wandb_run",
+    "triton_subsample_run1"
+  ],
+  "program": "/scratch/work/venkatv1/ph_gnn/ph_gnn_triton_subsample.py",
+  "codePath": "ph_gnn_triton_subsample.py",
+  "codePathLocal": "ph_gnn_triton_subsample.py",
+  "git": {
+    "remote": "https://github.com/Vikramvaidyanthan/Port-Hamiltonian-Graph-Neural-Network-for-grnaular-materia-.git",
+    "commit": "67a357bf847155df666a7fd40220c777ab6b8f5d"
+  },
+  "email": "vikramvaidyanathan.venkatraman@aalto.fi",
+  "root": "/scratch/work/venkatv1/ph_gnn",
+  "host": "gpu4.int.triton.aalto.fi",
+  "executable": "/scratch/work/venkatv1/envs/ph_gnn_env/bin/python",
+  "cpu_count": 16,
+  "cpu_count_logical": 32,
+  "gpu": "Tesla V100-PCIE-32GB",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "200353239040",
+      "used": "4314263552"
+    }
+  },
+  "memory": {
+    "total": "404284112896"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "Tesla V100-PCIE-32GB",
+      "memoryTotal": "34359738368",
+      "cudaCores": 5120,
+      "architecture": "Volta",
+      "uuid": "GPU-ce915b5a-3607-8b3c-0e33-955c56e4f1b4"
+    }
+  ],
+  "cudaVersion": "13.0",
+  "slurm": {
+    "cluster_name": "triton",
+    "conf": "/var/spool/slurmd/conf-cache/slurm.conf",
+    "cpus_on_node": "8",
+    "cpus_per_task": "8",
+    "gpus_on_node": "1",
+    "gtids": "0",
+    "job_account": "aalto_users",
+    "job_cpus_per_node": "8",
+    "job_end_time": "1782670330",
+    "job_gid": "3117418",
+    "job_gpus": "1",
+    "job_id": "18899420",
+    "job_name": "ph_gnn_subsample",
+    "job_nodelist": "gpu4",
+    "job_num_nodes": "1",
+    "job_partition": "gpu-v100-32g",
+    "job_qos": "normal",
+    "job_start_time": "1782540730",
+    "job_uid": "3117418",
+    "job_user": "venkatv1",
+    "jobid": "18899420",
+    "localid": "0",
+    "mem_per_node": "65536",
+    "nnodes": "1",
+    "nodeid": "0",
+    "nodelist": "gpu4",
+    "oom_kill_step": "0",
+    "prio_process": "0",
+    "procid": "0",
+    "submit_dir": "/scratch/work/venkatv1/ph_gnn",
+    "submit_host": "login4.triton.aalto.fi",
+    "task_pid": "1063656",
+    "tasks_per_node": "1",
+    "topology_addr": "s0-0.s1-11.gpu4",
+    "topology_addr_pattern": "switch.switch.node",
+    "tres_per_task": "cpu=8"
+  },
+  "writerId": "jo8zarg2bz1b1qpgdjmrf1bltjmdm29s"
+}

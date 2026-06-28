@@ -1,0 +1,38 @@
+Warming up CUDA (JIT compilation — may take 1-3 min on first run)...
+  Warming up torch_cluster radius_graph...
+  torch_cluster warm-up done.
+CUDA warm-up done.
+
+Pre-loading frames into RAM (one-time)...
+  Caching 24000 unique frames...
+  Cache ready — 4,000 sequences of 6 frames.
+
+
+============================================================
+  DATASET SPLIT  (90% train / 10% val, sliding-window epochs)
+  Total sequences  : 4,000
+  Training pool    : 3,600  (indices 0 .. 3599)
+  Validation set   : 400   (indices 3600 .. 3999)
+  Window per epoch : 0 seqs (floored to x510)
+  Slide per epoch  : 180 seqs (~5%)
+  Epochs           : 20
+============================================================
+Training:   0%|          | 0/20 [00:00<?, ?epoch/s]/scratch/work/venkatv1/envs/ph_gnn_env/lib/python3.10/site-packages/torch/optim/lr_scheduler.py:143: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+  warnings.warn("Detected call of `lr_scheduler.step()` before `optimizer.step()`. "
+Training:   0%|          | 0/20 [02:32<?, ?epoch/s]
+Traceback (most recent call last):
+  File "/scratch/work/venkatv1/ph_gnn_triton_v2.py", line 1174, in <module>
+    main()
+  File "/scratch/work/venkatv1/ph_gnn_triton_v2.py", line 1076, in main
+    bbs, bbd, brs, bwl, act = build_proximity_graph(q, arm_pos_np=anp)
+  File "/scratch/work/venkatv1/ph_gnn_triton_v2.py", line 573, in build_proximity_graph
+    bb_src, bb_dst = _radius_graph_gpu(q, r_thresh)
+  File "/scratch/work/venkatv1/ph_gnn_triton_v2.py", line 553, in _radius_graph_gpu
+    edge_index = tc_radius_graph(q_dev, r=r_thresh, loop=False, max_num_neighbors=64)
+  File "/scratch/work/venkatv1/envs/ph_gnn_env/lib/python3.10/site-packages/torch_cluster/radius.py", line 135, in radius_graph
+    edge_index = radius(x, x, r, batch, batch,
+  File "/scratch/work/venkatv1/envs/ph_gnn_env/lib/python3.10/site-packages/torch_cluster/radius.py", line 82, in radius
+    return torch.ops.torch_cluster.radius(x, y, ptr_x, ptr_y, r,
+  File "/scratch/work/venkatv1/envs/ph_gnn_env/lib/python3.10/site-packages/torch/_ops.py", line 755, in __call__
+    return self._op(*args, **(kwargs or {}))
+RuntimeError: x.dim() == 2 INTERNAL ASSERT FAILED at "csrc/cuda/radius_cuda.cu":49, please report a bug to PyTorch. Input mismatch

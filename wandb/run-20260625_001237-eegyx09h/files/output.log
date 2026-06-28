@@ -1,0 +1,13 @@
+Evaluating: 100%|██████████| 1650/1650 [02:41<00:00, 10.23seq/s]
+
+── Zigzag Test Results ──────────────────────────────────────────
+  test/pos_mse                  : 0.000017
+  test/vel_mse                  : 0.002271
+  test/total_loss               : 0.066782
+  test/rollout_loss             : 0.066782
+  test/R_psd_loss               : 0.000000
+  test/R_norm                   : 0.591522
+  test/R_eigmin                 : 0.128673
+  test/n_sequences              : 1650
+
+Results saved to /scratch/work/venkatv1/ph_gnn_outputs/zigzag_eval_results.json

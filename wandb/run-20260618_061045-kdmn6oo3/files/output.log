@@ -1,0 +1,17 @@
+Evaluating: 100%|██████████| 150/150 [02:51<00:00,  1.14s/run]
+
+── Zigzag Test Results ──────────────────────────────────────────
+  test/pos_mse                  : 0.000003
+  test/vel_mse                  : 0.000455
+  test/total_loss               : 0.013141
+  test/rollout_loss             : 0.013141
+  test/5step_pos_mse            : 0.000009
+  test/5step_vel_mse            : 0.000787
+  test/5step_total_loss         : 0.000000
+  test/R_psd_loss               : 0.000000
+  test/n_windows                : 1650
+  test/n_loss_valid             : 1650
+  test/R_norm                   : 0.017558
+  test/R_eigmin                 : 0.001942
+
+Results saved to /scratch/work/venkatv1/ph_gnn_outputs/train_split_eval_results.json
